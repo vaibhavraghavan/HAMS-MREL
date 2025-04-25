@@ -1,0 +1,36 @@
+   --------------HAMS Control file---------------
+   
+   Waterdepth   0.9D0                                          # Finite depth
+
+   #Start Definition of Wave Frequencies
+    0_inf_frequency_limits      1                             # 0: not to include; 1: to include; This will calculate the added mass for zero and infinite frequency
+    Input_frequency_type        3                             # Wave frequency is used here
+    Output_frequency_type       3                             # Wave frequency output is chosen
+    Number_of_frequencies      -80
+    Minimum_frequency_Wmin    0.2D0
+    Frequency_step            0.185D0
+   #End Definition of Wave Frequencies
+
+   #Start Definition of Wave Headings
+    Number_of_headings        1                               # Single wave heading is used (parallel to x axis)
+    90.D0
+   #End Definition of Wave Headings
+
+    Reference_body_center       0.000       0.000      -0.043                              # Rotation center first body
+    Reference_body_length   1.D0                              # Default value is taken for now
+    Wave_diffrac_solution    1
+    If_remove_irr_freq       0                                # No waterplane needed. No removal of irregular frequencies.
+    Number of threads        32                                # Taken as the default value 
+
+   #Start Definition of Pressure and/or Elevation (PE)
+    Number_of_field_points     0                           # number of field points where to calculate PE - No points selected
+   #End Definition of Pressure and/or Elevation
+   
+   ----------End HAMS Control file---------------
+   
+   
+   Input_frequency_type options: 
+   1--deepwater wave number; 2--finite-depth wave number; 3--wave frequency; 4--wave period; 5--wave length
+   Output_frequency_type options: same as Input_frequency_type options
+
+   
