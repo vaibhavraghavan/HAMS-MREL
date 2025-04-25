@@ -1,0 +1,20 @@
+# This file contains the recipe to build HAMS-MREL
+#
+# Open the link below for to see a complete list of options
+# and configurations that can be defined in this file 
+# https://fpm.fortran-lang.org/spec/manifest.html
+
+# Define project properties
+name = "HAMS-MREL"
+version = "0.0.0"
+
+# Define an executable called hamsmrel.
+[[executable]]
+name = "hamsmrel"
+
+# Tell fpm where the source files are. 
+# fpm will automatically compile all the Fortran files in source-dir 
+source-dir = "src"
+
+# Tell fpm which file is the entry point (or "main file") of the application
+main = "HAMS_Prog.f90"
