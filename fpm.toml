@@ -1,0 +1,7 @@
+name = "HAMS-MREL"
+version = "0.0.0"
+
+[[executable]]
+name = "hamsmrel"
+source-dir = "src"
+main = "HAMS_Prog.f90"
