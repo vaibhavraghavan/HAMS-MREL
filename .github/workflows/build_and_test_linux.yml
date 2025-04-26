@@ -31,7 +31,7 @@ jobs:
         id: setup-fortran
         with:
           compiler: intel
-          version: 2025.0
+          version: '2025.0'
           install_mkl: true
 
       # Install Fortran Package Manager (FPM) on the runner
