@@ -1,0 +1,47 @@
+name: Linux Build and Test
+
+# Workflow triggers tell GitHub when to run the workflow:
+# a) when there is a new commit on the main or develop branch
+# b) when a new pull request is opened to merge a branch into main or develop
+on:
+  push:
+    branches: [ "main", "develop", "3-github-actions"]
+  pull_request:
+    branches: [ "main", "develop"]
+
+# This workflow defines one job: build-and-test
+jobs:
+  build-and-test:
+    
+    # Use ubuntu-latest runner.
+    # See https://github.com/actions/runner-images for a list of available runners.
+    runs-on: ubuntu-latest
+    
+    steps:
+
+      # Checkout a copy of this repository on the runner
+      # We use the "checkout" GitHub Action
+      # https://github.com/actions/checkout
+      - uses: actions/checkout@v4
+
+      # Install the Intel Fortran compiler and oneMKL library on the runner
+      # We use the "setup-fortran" GitHub Action (math branch, not available on Windows)
+      # https://github.com/fortran-lang/setup-fortran
+      - uses: fortran-lang/setup-fortran@math
+        id: setup-fortran
+        with:
+          compiler: intel
+          version: 2025.0
+          install_mkl: true
+
+      # Install Fortran Package Manager (FPM) on the runner
+      # We use the "setup-fpm" GitHub Action
+      # https://github.com/marketplace/actions/setup-fortran
+      - uses: fortran-lang/setup-fpm@v7
+          
+      # Compile HAMS-MREL using FPM
+      # FPM will use the FPM_LDFLAGS variable to determine what linker flags to use
+      - name: Compile HAMS-MREL
+        run: |
+          export FPM_LDFLAGS="-qmkl"
+          fpm build
