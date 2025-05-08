@@ -61,12 +61,7 @@
 
 !  ---------------------------------------------------------------------------------------------------------
 !  
-module HAMS_Lib
-  implicit none
-
-contains
-
-  subroutine Exec()                                                                         ! This is where the executable starts
+PROGRAM HAMS_MREL
     
       USE AssbMatx
       USE AssbMatxMulti
@@ -731,13 +726,6 @@ contains
        
        ENDIF
 
-     end subroutine Exec
-end module HAMS_Lib
 
-
-!  
-      Program HAMS
-      USE HAMS_Lib
-      CALL Exec
-      END Program HAMS
+END PROGRAM HAMS_MREL
       
