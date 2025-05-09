@@ -63,6 +63,7 @@
 !  
 PROGRAM HAMS_MREL
     
+      USE IO
       USE AssbMatx
       USE AssbMatxMulti
       USE AssbMatx_irr
@@ -89,6 +90,7 @@ PROGRAM HAMS_MREL
       INTEGER II,KK,MD,MD1,MD2,FILE_M,FILE_N,NELEM_GLOBAL,err
       INTEGER,ALLOCATABLE:: NELEM_TOTAL_RAD(:)
       CHARACTER(LEN=100) FILE_NUMBER,MESH_MULTI,HYDROSTATIC_MULTI, WATERPLANEMESH_MULTI
+      LOGICAL :: success
 
 !======================================================================      
 !
@@ -128,8 +130,18 @@ PROGRAM HAMS_MREL
       ALLOCATE(LCS_MULTI(1,1))                     ! This is only to be able to use LCS_MULTI in the main HAMS application
       DEALLOCATE(LCS_MULTI)
       
-      CALL ReadOpenFiles
- 
+        !call ReadInputfile(inputpath, succes)
+
+        !CALL ReadInputFile()
+        call CreateOutputFiles('Output', 3, success)
+        if (success) then
+            print *, "YAAAY!"
+            stop
+        else
+            print *, "NAAAY!"
+            stop
+        end if
+
       CALL OMP_SET_NUM_THREADS(nthread)
 
       write(*,*) ' Number of machine processors:   ',omp_get_num_procs()
