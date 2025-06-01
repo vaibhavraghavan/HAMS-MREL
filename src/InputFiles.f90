@@ -30,50 +30,67 @@ module IO
 
     implicit none
 
-    PUBLIC :: ReadInputFile
-    PUBLIC :: CreateOutputFiles
+    public :: ReadInputFile
+    public :: CreateOutputFiles
 
     contains
 
-SUBROUTINE ReadInputFile
-      USE HAMS_mod
-      USE Body_mod
-      USE WaveDyn_mod
-      USE FieldOutput_mod
-      IMPLICIT NONE
+    subroutine ReadInputFile(dir, success)
+        
+        use HAMS_mod
+        use Body_mod
+        use WaveDyn_mod
+        use FieldOutput_mod
+      
+        implicit none
+        character(len=*), intent(in) :: dir
+        logical, intent(out) :: success
+        logical :: exists
 
-      INTEGER I,J,err,IFS,NPET,NB,EXISTS
-      CHARACTER(LEN=100) FILE_RADIATION,FILE_NUMBER,BODY_CHECK
+        integer I,J,err,IFS,NPET,NB
+        character(len=100) FILE_RADIATION,FILE_NUMBER,BODY_CHECK
 
-! ======================================================
-      OPEN(1, FILE='Input/ControlFile.in',      STATUS='OLD')
-      OPEN(9, FILE='Input/ErrorCheck.txt' ,    STATUS='UNKNOWN')
-! ====================================================
+        success = .false.
 
-!  H :   Water depth; H<0: For infinite water depth; H>0: For finite water depth; 
-!  AMP:  Wave amplitude
-!  BETA: Wave incident angle with repect to the x-direction
-!  INFT=0,  input wave number; INFT=1, input wave frequency
-!  XC,YC,ZC: the coordinates of body rotation center or bouyancy center
+        ! Open input file
+        inquire(file=dir//"/ControlFile.in", exist=exists)
+        if (exists) then
+            open(1, file=dir//"/ControlFile.in", status="OLD", action="READ")
+        else
+            print *, "Error opening ControlFile.in for reading"
+            return
+        end if
 
-        READ(1,*) 
-        READ(1,*) 
-        READ(1,'(14x,f30.15)')     H
-        READ(1,*) 
-        READ(1,*) 
-        READ(1,'(27x,i16)')        SYBO
-        READ(1,'(25x,i16)')        INFT
-        READ(1,'(25x,i17)')        OUFT
-        READ(1,'(26x,i16)')        NPET
-        IF (SYBO.EQ.0) THEN
-          IFS=0
-        ELSEIF (SYBO.EQ.1) THEN
-          IFS=2
-        ELSE
-          PRINT*, 'Warning: SYBO must be 0 or 1.'
-          PRINT*
-          IFS=0
-        ENDIF
+        ! Open file to write rotation center
+        open(9, file=dir//'/ErrorCheck.txt', status='UNKNOWN', action="WRITE")
+
+
+        !  H :   Water depth; H<0: For infinite water depth; H>0: For finite water depth; 
+        !  AMP:  Wave amplitude
+        !  BETA: Wave incident angle with repect to the x-direction
+        !  INFT=0,  input wave number; INFT=1, input wave frequency
+        !  XC,YC,ZC: the coordinates of body rotation center or bouyancy center
+
+        read(1,*) 
+        read(1,*) 
+        read(1,'(14x,f30.15)')     H
+        read(1,*) 
+        read(1,*) 
+        read(1,'(27x,i16)')        SYBO
+        read(1,'(25x,i16)')        INFT
+        read(1,'(25x,i17)')        OUFT
+        read(1,'(26x,i16)')        NPET
+        
+        if (SYBO.EQ.0) then
+            IFS = 0
+        else if (SYBO.EQ.1) then
+            IFS = 2
+        else
+            print*, 'Warning: SYBO must be 0 or 1.'
+            print*
+            IFS = 0
+        end if
+        
         IF (NPET.GE.0) THEN
          NPER=IFS+NPET
          ALLOCATE(WVNB(NPER))
@@ -88,15 +105,18 @@ SUBROUTINE ReadInputFile
           WVNB(I)=WK1+(I-IFS-1)*DWK
          ENDDO
         ENDIF
+        
         READ(1,*)
         READ(1,*)
         READ(1,'(A100)') BODY_CHECK
+        
         ! Reading of the number of multi-bodies
         IF (INDEX(BODY_CHECK,"multi")>0) THEN
-        READ(1,'(24x,i16)')        NBODY
+            READ(1,'(24x,i16)')        NBODY
         ELSE 
-        NBODY = 1
+            NBODY = 1
         ENDIF
+        
         IF (NBODY.LT.0) THEN
          PRINT*, 'ERROR:The number of bodies must be greater than or equal to 1'
          PRINT*
@@ -147,148 +167,150 @@ SUBROUTINE ReadInputFile
         READ(1,'(26x,i16)')        ISOL
         READ(1,'(23x,i16)')        IRSP
         READ(1,'(23x,i16)')        NTHREAD
-        IF (IRSP.NE.0) THEN                                         ! At this point, it only checks if the waterplane mesh is there for a single body. For multi-bodies, this is added to the HAMS_Prog
-          IF (NBODY.EQ.1) THEN
-            OPEN(5, FILE='Input/WaterPlaneMesh.pnl', STATUS='OLD', &
-                IOSTAT=err)
-            if (err/=0) then
-            PRINT*, 'Error: The waterplane mesh file does not exist.'
-            PRINT*
-            stop
-            endif
-          ENDIF
-        ENDIF
+        
+        if (IRSP .NE. 0) then ! Checks if the waterplane mesh is there for a single body. For multi-bodies, this is added to the HAMS_Prog
+            if (NBODY .EQ. 1) then
+                open(5, file=dir//'/WaterPlaneMesh.pnl', status='OLD', iostat=err)
+                if (err /= 0) then
+                    print*, 'Error: The waterplane mesh file does not exist.'
+                    print*
+                    stop
+                endif
+            end if
+        end if
 
         READ(1,*) 
         READ(1,*) 
         READ(1,'(27x,i16)')        NFP
         ALLOCATE(XFP(NFP,3))
         DO I=1,NFP
-!          READ(1,'(26x,3(1x,f10.4))')     (XFP(I,J), J=1,3)
+            ! READ(1,'(26x,3(1x,f10.4))')     (XFP(I,J), J=1,3)
            READ(1,*)     (XFP(I,J), J=1,3)
         ENDDO
 
-END SUBROUTINE ReadInputFile
+        success = .true.
 
-        subroutine CreateFile(filepath, success)
-            implicit none
-            character(len=*), intent(in) :: filepath
-            logical, intent(out) :: success
+    end subroutine ReadInputFile
 
-            OPEN(856, FILE=filepath, STATUS='UNKNOWN')
+    subroutine CreateFile(filepath, success)
+        implicit none
+        character(len=*), intent(in) :: filepath
+        logical, intent(out) :: success
 
-            success = .true.
+        OPEN(856, FILE=filepath, STATUS='UNKNOWN')
 
-        end subroutine CreateFile
+        success = .true.
 
-        subroutine CreateDirectory(dir, success)
-            implicit none
-            character(len=*), intent(in) :: dir
-            logical, intent(out) :: success
-            logical :: exists
-            integer :: cstat
-            character(100) :: cmsg
+    end subroutine CreateFile
 
-            inquire(directory=dir, exist=exists)
-            if (.not. exists) then
-                call execute_command_line("mkdir -p " // dir, CMDSTAT=cstat, CMDMSG=cmsg)
-                if (cstat /= 0) then
-                    print *, "Failed to create directory ", dir, ". Error: ", trim(cmsg)
-                    success = .false.
-                    return
-                end if
-            end if
+    subroutine CreateDirectory(dir, success)
+        implicit none
+        character(len=*), intent(in) :: dir
+        logical, intent(out) :: success
+        logical :: exists
+        integer :: cstat
+        character(100) :: cmsg
 
-            success = .true.
-
-        end subroutine CreateDirectory
-
-        subroutine CreateHamsFiles(dir)
-            implicit none
-            character(len=*), intent(in) :: dir
-            character(len=1) :: istr
-            integer :: i
-
-            do i = 1, 6
-                write(istr, '(I1)') i   ! Convert i to str
-                open(757, file=dir//'/OEXFOR'//istr//'.txt', status='UNKNOWN')
-                open(758, file=dir//'/OAMASS'//istr//'.txt', status='UNKNOWN')
-                open(759, file=dir//'/ODAMPING'//istr//'.txt', status='UNKNOWN')
-            end do
-        end subroutine CreateHamsFiles
-
-        subroutine CreateWamitFiles(dir, numbodies)
-            implicit none
-            character(len=*), intent(in) :: dir
-            integer, intent(in) :: numbodies
-            character(len=5) :: istr ! len=5 assumes <= 99999 bodies
-            integer :: i
-
-            if (numbodies == 1) then
-                open(61, file=dir//'/AmssDamp.1', status='UNKNOWN')
-                open(62, file=dir//'/ExcForce.3', status='UNKNOWN')
-                open(63, file=dir//'/Motion.4', status='UNKNOWN')
-                open(64, file=dir//'/PressureElevation.6p', status='UNKNOWN')
-                open(65, file=dir//'/Hydrostat.hst', status='UNKNOWN')
-            else if (numbodies > 1) then
-                open(61, file=dir//'/Buoy.1', status='UNKNOWN')
-                open(62, file=dir//'/Buoy.3', status='UNKNOWN')
-                open(63, file=dir//'/Buoy.4', status='UNKNOWN')
-                open(64, file=dir//'/Buoy_Diffraction.6p', status='UNKNOWN')
-                open(65, file=dir//'/Buoy.hst', status='UNKNOWN')
-                open(66, file=dir//'/Buoy_Incidence.6p', status='UNKNOWN')
-                do i = 1, numbodies
-                    write(istr, '(I5)') i
-                    open(200+i, file=dir//'/Buoy_Radiation_'//trim(adjustl(istr))//'.6p', status='UNKNOWN') 
-                end do
-            end if
-        end subroutine CreateWamitFiles
-
-        subroutine CreateHydrostarFiles(dir)
-            implicit none
-            character(len=*), intent(in) :: dir
-            character(len=1) :: istr, jstr
-            integer :: i, j
-
-            do i = 1, 6
-                write(istr, '(I1)') i   ! Convert i to str
-                do j = 1, 6
-                    write(jstr, '(I1)') j   ! Convert j to str
-                    open(857, file=dir//'/AddedMass_'//istr//jstr//'.rao', status='UNKNOWN')
-                    open(858, file=dir//'/WaveDamping_'//istr//jstr//'.rao', status='UNKNOWN')
-                end do
-                open(859, file=dir//'/Excitation_'//istr//'.rao', status='UNKNOWN')
-                open(859, file=dir//'/Motion_'//istr//'.rao', status='UNKNOWN')
-             end do
-        end subroutine CreateHydrostarFiles
-
-        ! Create output files and directories
-        subroutine CreateOutputFiles(outputdir, numbodies, success)
-            implicit none
-            character(len=*), intent(in) :: outputdir
-            integer, intent(in) :: numbodies
-            logical, intent(out) :: success
-
-            ! Create output directories
-            call CreateDirectory(outputdir, success)
-            if (success) then
-                call CreateDirectory(outputdir // "/Hams_format", success)
-                call CreateDirectory(outputdir // "/Wamit_format", success)
-                call CreateDirectory(outputdir // "/Hydrostar_format", success)
-            end if
-
-            ! Exit if directories were not created
-            if (.not. success) then
-                print *, "Could not create output directories."
+        inquire(directory=dir, exist=exists)
+        if (.not. exists) then
+            call execute_command_line("mkdir -p " // dir, CMDSTAT=cstat, CMDMSG=cmsg)
+            if (cstat /= 0) then
+                print *, "Failed to create directory ", dir, ". Error: ", trim(cmsg)
+                success = .false.
                 return
             end if
+        end if
 
-            call CreateHamsFiles(outputdir // "/Hams_format")
-            call CreateWamitFiles(outputdir // "/Wamit_format", numbodies)
-            if (numbodies == 1) then
-                call CreateHydrostarFiles(outputdir // "/Hydrostar_format")
-            end if
-            
-        end subroutine CreateOutputFiles
+        success = .true.
+
+    end subroutine CreateDirectory
+
+    subroutine CreateHamsFiles(dir)
+        implicit none
+        character(len=*), intent(in) :: dir
+        character(len=1) :: istr
+        integer :: i
+
+        do i = 1, 6
+            write(istr, '(I1)') i   ! Convert i to str
+            open(757, file=dir//'/OEXFOR'//istr//'.txt', status='UNKNOWN')
+            open(758, file=dir//'/OAMASS'//istr//'.txt', status='UNKNOWN')
+            open(759, file=dir//'/ODAMPING'//istr//'.txt', status='UNKNOWN')
+        end do
+    end subroutine CreateHamsFiles
+
+    subroutine CreateWamitFiles(dir, numbodies)
+        implicit none
+        character(len=*), intent(in) :: dir
+        integer, intent(in) :: numbodies
+        character(len=5) :: istr ! len=5 assumes <= 99999 bodies
+        integer :: i
+
+        if (numbodies == 1) then
+            open(61, file=dir//'/AmssDamp.1', status='UNKNOWN')
+            open(62, file=dir//'/ExcForce.3', status='UNKNOWN')
+            open(63, file=dir//'/Motion.4', status='UNKNOWN')
+            open(64, file=dir//'/PressureElevation.6p', status='UNKNOWN')
+            open(65, file=dir//'/Hydrostat.hst', status='UNKNOWN')
+        else if (numbodies > 1) then
+            open(61, file=dir//'/Buoy.1', status='UNKNOWN')
+            open(62, file=dir//'/Buoy.3', status='UNKNOWN')
+            open(63, file=dir//'/Buoy.4', status='UNKNOWN')
+            open(64, file=dir//'/Buoy_Diffraction.6p', status='UNKNOWN')
+            open(65, file=dir//'/Buoy.hst', status='UNKNOWN')
+            open(66, file=dir//'/Buoy_Incidence.6p', status='UNKNOWN')
+            do i = 1, numbodies
+                write(istr, '(I5)') i
+                open(200+i, file=dir//'/Buoy_Radiation_'//trim(adjustl(istr))//'.6p', status='UNKNOWN') 
+            end do
+        end if
+    end subroutine CreateWamitFiles
+
+    subroutine CreateHydrostarFiles(dir)
+        implicit none
+        character(len=*), intent(in) :: dir
+        character(len=1) :: istr, jstr
+        integer :: i, j
+
+        do i = 1, 6
+            write(istr, '(I1)') i   ! Convert i to str
+            do j = 1, 6
+                write(jstr, '(I1)') j   ! Convert j to str
+                open(857, file=dir//'/AddedMass_'//istr//jstr//'.rao', status='UNKNOWN')
+                open(858, file=dir//'/WaveDamping_'//istr//jstr//'.rao', status='UNKNOWN')
+            end do
+            open(859, file=dir//'/Excitation_'//istr//'.rao', status='UNKNOWN')
+            open(859, file=dir//'/Motion_'//istr//'.rao', status='UNKNOWN')
+            end do
+    end subroutine CreateHydrostarFiles
+
+    ! Create output files and directories
+    subroutine CreateOutputFiles(outputdir, numbodies, success)
+        implicit none
+        character(len=*), intent(in) :: outputdir
+        integer, intent(in) :: numbodies
+        logical, intent(out) :: success
+
+        ! Create output directories
+        call CreateDirectory(outputdir, success)
+        if (success) then
+            call CreateDirectory(outputdir // "/Hams_format", success)
+            call CreateDirectory(outputdir // "/Wamit_format", success)
+            call CreateDirectory(outputdir // "/Hydrostar_format", success)
+        end if
+
+        ! Exit if directories were not created
+        if (.not. success) then
+            print *, "Could not create output directories."
+            return
+        end if
+
+        call CreateHamsFiles(outputdir // "/Hams_format")
+        call CreateWamitFiles(outputdir // "/Wamit_format", numbodies)
+        if (numbodies == 1) then
+            call CreateHydrostarFiles(outputdir // "/Hydrostar_format")
+        end if
+        
+    end subroutine CreateOutputFiles
 
 end module IO

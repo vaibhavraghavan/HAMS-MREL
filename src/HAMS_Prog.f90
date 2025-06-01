@@ -87,9 +87,10 @@ PROGRAM HAMS_MREL
 
       IMPLICIT NONE  
       
-      INTEGER II,KK,MD,MD1,MD2,FILE_M,FILE_N,NELEM_GLOBAL,err
+      INTEGER II,KK,MD,MD1,MD2,FILE_M,FILE_N,NELEM_GLOBAL,err,argcount
       INTEGER,ALLOCATABLE:: NELEM_TOTAL_RAD(:)
       CHARACTER(LEN=100) FILE_NUMBER,MESH_MULTI,HYDROSTATIC_MULTI, WATERPLANEMESH_MULTI
+      CHARACTER(LEN=260) inputdir, outputdir ! 260 is the max lengths for paths on Windows
       LOGICAL :: success
 
 !======================================================================      
@@ -130,13 +131,29 @@ PROGRAM HAMS_MREL
       ALLOCATE(LCS_MULTI(1,1))                     ! This is only to be able to use LCS_MULTI in the main HAMS application
       DEALLOCATE(LCS_MULTI)
       
-        !call ReadInputfile(inputpath, succes)
+        ! Define output and output directories
+        argcount = command_argument_count()
+        if (argcount == 2) then
+            call get_command_argument(1, inputdir)
+            call get_command_argument(2, outputdir)
+        else
+            inputdir = "Input"
+            outputdir = "Output"
+        endif
+        write(*,*) ' Input directory:                ', trim(inputdir)
+        write(*,*) ' Output directory:               ', trim(outputdir), new_line('a')
 
-        !CALL ReadInputFile()
-        call CreateOutputFiles('Output', 3, success)
+        ! Read Input File
+        call ReadInputfile(trim(inputdir), success)
+        if (.not. success) then
+            print*, "Error encountered reading input file. Terminating application."
+            stop
+        end if
+
+        ! Create Output files and directories
+        call CreateOutputFiles(trim(outputdir), NBODY, success)
         if (success) then
             print *, "YAAAY!"
-            stop
         else
             print *, "NAAAY!"
             stop
@@ -152,8 +169,8 @@ PROGRAM HAMS_MREL
       
       ! Reading the mesh file and Hydrostatic file
       IF (NBODY.EQ.1) THEN
-       OPEN(2, FILE='Input/HullMesh.pnl',        STATUS='OLD')
-       OPEN(4, FILE='Input/Hydrostatic.in',     STATUS='UNKNOWN')
+       open(2, FILE=trim(inputdir)//'/HullMesh.pnl', status='OLD', action='READ')
+       open(4, FILE=trim(inputdir)//'/Hydrostatic.in', status='UNKNOWN', action='READ')
      
        DO II=1,3
         READ(2,*)
@@ -368,9 +385,9 @@ PROGRAM HAMS_MREL
         ELSE
          WRITE(FILE_NUMBER,'(I1)') FILE_M  
         ENDIF 
-        MESH_MULTI='Input/HullMesh_'//FILE_NUMBER
+        MESH_MULTI=trim(inputdir)//'/HullMesh_'//FILE_NUMBER
         MESH_MULTI=TRIM(MESH_MULTI)//'.pnl'
-        OPEN(2, FILE=MESH_MULTI,        STATUS='OLD')
+        OPEN(2, FILE=MESH_MULTI,        STATUS='OLD', action='READ')
         DO II=1,3
          READ(2,*)
         ENDDO
@@ -381,10 +398,9 @@ PROGRAM HAMS_MREL
         
         ! Reading of the water plane meshes to obtain the number of panels, number of nodes and the symmetry options. In this case, if a certain water plane mesh is available then it is opened and the number of panels/nodes is retrieved.
         IF (IRSP.NE.0) THEN
-        WATERPLANEMESH_MULTI='Input/WaterPlaneMesh_'//FILE_NUMBER
+        WATERPLANEMESH_MULTI=trim(inputdir)//'/WaterPlaneMesh_'//FILE_NUMBER
         WATERPLANEMESH_MULTI=TRIM(WATERPLANEMESH_MULTI)//'.pnl'
-        OPEN(5, FILE=WATERPLANEMESH_MULTI, STATUS='OLD', &
-                IOSTAT=err)
+        OPEN(5, FILE=WATERPLANEMESH_MULTI, STATUS='OLD', action='READ', IOSTAT=err)
             IF (err/=0) then
              WRITE(*,*) 'Warning: The waterplane mesh file does not exist for Body', FILE_NUMBER
              iNELEM_MULTI(FILE_M) = 0
@@ -429,9 +445,9 @@ PROGRAM HAMS_MREL
         ELSE
          WRITE(FILE_NUMBER,'(I1)') FILE_M  
         ENDIF 
-        MESH_MULTI='Input/HullMesh_'//FILE_NUMBER
+        MESH_MULTI=trim(inputdir)//'/HullMesh_'//FILE_NUMBER
         MESH_MULTI=TRIM(MESH_MULTI)//'.pnl'
-        OPEN(2, FILE=MESH_MULTI,        STATUS='OLD')
+        OPEN(2, FILE=MESH_MULTI, STATUS='OLD', action='READ')
         
         DO II=1,3
          READ(2,*)
@@ -439,9 +455,9 @@ PROGRAM HAMS_MREL
         
         IF (IRSP.NE.0) THEN                           ! Skipping the first three lines since these do not provide any information
          IF (iNELEM_MULTI(FILE_M).GT.0) THEN
-          WATERPLANEMESH_MULTI='Input/WaterPlaneMesh_'//FILE_NUMBER
+          WATERPLANEMESH_MULTI=trim(inputdir)//'/WaterPlaneMesh_'//FILE_NUMBER
           WATERPLANEMESH_MULTI=TRIM(WATERPLANEMESH_MULTI)//'.pnl'
-          OPEN(5, FILE=WATERPLANEMESH_MULTI, STATUS='OLD')
+          OPEN(5, FILE=WATERPLANEMESH_MULTI, STATUS='OLD', action='READ')
           DO II=1,3
            READ(5,*)
           ENDDO
@@ -536,9 +552,9 @@ PROGRAM HAMS_MREL
         ELSE
          WRITE(FILE_NUMBER,'(I1)') FILE_M  
         ENDIF 
-        HYDROSTATIC_MULTI='Input/Hydrostatic_'//FILE_NUMBER
+        HYDROSTATIC_MULTI=trim(inputdir)//'/Hydrostatic_'//FILE_NUMBER
         HYDROSTATIC_MULTI=TRIM(HYDROSTATIC_MULTI)//'.in'
-        OPEN(4, FILE=HYDROSTATIC_MULTI,     STATUS='UNKNOWN')
+        OPEN(4, FILE=HYDROSTATIC_MULTI, STATUS='UNKNOWN', action='READ')
         CALL ReadHydroStaticMulti(FILE_M)
         CLOSE(4)
         CALL CalNormalsMulti(FILE_M,IRSP)                                                      ! This is implemented for no removal of irregular frequencies at this point
