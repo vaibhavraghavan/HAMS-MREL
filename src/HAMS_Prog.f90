@@ -143,19 +143,22 @@ PROGRAM HAMS_MREL
         write(*,*) ' Input directory:                ', trim(inputdir)
         write(*,*) ' Output directory:               ', trim(outputdir), new_line('a')
 
-        ! Read Input File
-        call ReadInputfile(trim(inputdir), success)
+        ! Read and check for input files
+        call ReadControlFile(trim(inputdir), success)
         if (.not. success) then
-            print*, "Error encountered reading input file. Terminating application."
+            print*, "Error encountered reading input file ControlFile.in. Terminating application."
+            stop
+        end if
+        call VerifyInputFilesExist(trim(inputdir), NBODY, success)
+        if (.not. success) then
+            print*, "Input files missing. Terminating application."
             stop
         end if
 
-        ! Create Output files and directories
+        ! Create output files and directories
         call CreateOutputFiles(trim(outputdir), NBODY, success)
-        if (success) then
-            print *, "YAAAY!"
-        else
-            print *, "NAAAY!"
+        if (.not. success) then
+            print *, "Error encountered creating output directories. Terminating application."
             stop
         end if
 

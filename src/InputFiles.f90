@@ -30,12 +30,13 @@ module IO
 
     implicit none
 
-    public :: ReadInputFile
+    public :: ReadControlFile
+    public :: VerifyInputFilesExist
     public :: CreateOutputFiles
 
     contains
 
-    subroutine ReadInputFile(dir, success)
+    subroutine ReadControlFile(dir, success)
         
         use HAMS_mod
         use Body_mod
@@ -190,7 +191,50 @@ module IO
 
         success = .true.
 
-    end subroutine ReadInputFile
+    end subroutine ReadControlFile
+
+    subroutine VerifyInputFilesExist(dir, numbodies, success)
+        implicit none
+        character(len=*), intent(in) :: dir
+        integer, intent(in) :: numbodies
+        logical, intent(out) :: success
+        logical :: hullexists, hydroexists, wpmexists
+        integer :: i
+        character(len=1) :: istr
+
+        success = .true.
+        
+        if (numbodies == 1) then
+            istr = '1'
+            inquire(file=dir//"/HullMesh.pnl", exist=hullexists)
+            inquire(file=dir//"/Hydrostatic.in", exist=hydroexists)
+            inquire(file=dir//"WaterPlaneMesh.pnl", exist=wpmexists)
+        else if (numbodies > 1) then
+            do i = 1, numbodies
+                write(istr, '(I1)') i   ! Convert i to str
+                inquire(file=dir//"/HullMesh_"//istr//".pnl", exist=hullexists)
+                inquire(file=dir//"/Hydrostatic_"//istr//".in", exist=hydroexists)
+                inquire(file=dir//"WaterPlaneMesh_"//istr//".pnl", exist=wpmexists)
+                if ((.not. hullexists) .or. (.not. hydroexists) .or. (.not. wpmexists)) then
+                    exit
+                end if
+            end do
+        end if
+
+        if (.not. hullexists) then 
+            print*, "HullMesh.pnl input file missing for body ", istr, new_line('a')
+            success = .false.
+        end if
+        if (.not. hydroexists) then
+            print*, "Hydrostatic.in input file missing for body ", istr, new_line('a')
+            success = .false.
+        end if
+        if (.not. wpmexists) then
+            print *, "WaterPlaneMesh.pnl input file missing for body ", istr, new_line('a')
+            success = .false.
+        end if
+
+    end subroutine VerifyInputFilesExist
 
     subroutine CreateFile(filepath, success)
         implicit none
@@ -296,18 +340,30 @@ module IO
         character(len=*), intent(in) :: outputdir
         integer, intent(in) :: numbodies
         logical, intent(out) :: success
+        logical :: hams, wamit, hydro
 
         ! Create output directories
         call CreateDirectory(outputdir, success)
         if (success) then
-            call CreateDirectory(outputdir // "/Hams_format", success)
-            call CreateDirectory(outputdir // "/Wamit_format", success)
-            call CreateDirectory(outputdir // "/Hydrostar_format", success)
+            call CreateDirectory(outputdir // "/Hams_format", hams)
+            call CreateDirectory(outputdir // "/Wamit_format", wamit)
+            call CreateDirectory(outputdir // "/Hydrostar_format", hydro)
         end if
 
         ! Exit if directories were not created
-        if (.not. success) then
-            print *, "Could not create output directories."
+        if (.not. hams) then
+            print*, "Could not create Hams_format output directory"
+            success = .false.
+            return
+        end if
+        if (.not. wamit) then
+            print*, "Could not create Wamit_format output directory"
+            success = .false.
+            return
+        end if
+        if (.not. hydro) then
+            print *, "Could not create Hydrostar_format output directory."
+            success = .false.
             return
         end if
 
