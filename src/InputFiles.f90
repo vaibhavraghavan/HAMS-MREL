@@ -231,11 +231,13 @@ module IO
         character(len=1) :: istr
         integer :: i
 
+        ! IDs used in open statements are also used in write statements
+        ! Don't modify their values or write statements will not find the files
         do i = 1, 6
             write(istr, '(I1)') i   ! Convert i to str
-            open(757, file=dir//'/OEXFOR'//istr//'.txt', status='UNKNOWN')
-            open(758, file=dir//'/OAMASS'//istr//'.txt', status='UNKNOWN')
-            open(759, file=dir//'/ODAMPING'//istr//'.txt', status='UNKNOWN')
+            open(20+i, file=dir//'/OEXFOR'//istr//'.txt', status='UNKNOWN')
+            open(30+i, file=dir//'/OAMASS'//istr//'.txt', status='UNKNOWN')
+            open(40+i, file=dir//'/ODAMPING'//istr//'.txt', status='UNKNOWN')
         end do
     end subroutine CreateHamsFiles
 
@@ -246,6 +248,8 @@ module IO
         character(len=5) :: istr ! len=5 assumes <= 99999 bodies
         integer :: i
 
+        ! IDs used in open statements are also used in write statements
+        ! Don't modify their values or write statements will not find the files
         if (numbodies == 1) then
             open(61, file=dir//'/AmssDamp.1', status='UNKNOWN')
             open(62, file=dir//'/ExcForce.3', status='UNKNOWN')
@@ -261,7 +265,7 @@ module IO
             open(66, file=dir//'/Buoy_Incidence.6p', status='UNKNOWN')
             do i = 1, numbodies
                 write(istr, '(I5)') i
-                open(200+i, file=dir//'/Buoy_Radiation_'//trim(adjustl(istr))//'.6p', status='UNKNOWN') 
+                open(210+i, file=dir//'/Buoy_Radiation_'//trim(adjustl(istr))//'.6p', status='UNKNOWN') 
             end do
         end if
     end subroutine CreateWamitFiles
@@ -272,15 +276,17 @@ module IO
         character(len=1) :: istr, jstr
         integer :: i, j
 
+        ! IDs used in open statements are also used in write statements
+        ! Don't modify their values or write statements will not find the files
         do i = 1, 6
             write(istr, '(I1)') i   ! Convert i to str
             do j = 1, 6
                 write(jstr, '(I1)') j   ! Convert j to str
-                open(857, file=dir//'/AddedMass_'//istr//jstr//'.rao', status='UNKNOWN')
-                open(858, file=dir//'/WaveDamping_'//istr//jstr//'.rao', status='UNKNOWN')
+                open((60+(i*10))+j, file=dir//'/AddedMass_'//istr//jstr//'.rao', status='UNKNOWN')
+                open((120+(i*10))+j, file=dir//'/WaveDamping_'//istr//jstr//'.rao', status='UNKNOWN')
             end do
-            open(859, file=dir//'/Excitation_'//istr//'.rao', status='UNKNOWN')
-            open(859, file=dir//'/Motion_'//istr//'.rao', status='UNKNOWN')
+            open(190+i, file=dir//'/Excitation_'//istr//'.rao', status='UNKNOWN')
+            open(200+i, file=dir//'/Motion_'//istr//'.rao', status='UNKNOWN')
             end do
     end subroutine CreateHydrostarFiles
 
@@ -305,8 +311,8 @@ module IO
             return
         end if
 
-        call CreateHamsFiles(outputdir // "/Hams_format")
-        call CreateWamitFiles(outputdir // "/Wamit_format", numbodies)
+        call CreateHamsFiles(outputdir//"/Hams_format")
+        call CreateWamitFiles(outputdir//"/Wamit_format", numbodies)
         if (numbodies == 1) then
             call CreateHydrostarFiles(outputdir // "/Hydrostar_format")
         end if
