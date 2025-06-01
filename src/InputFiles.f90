@@ -82,112 +82,112 @@ module IO
         read(1,'(25x,i17)')        OUFT
         read(1,'(26x,i16)')        NPET
         
-        if (SYBO.EQ.0) then
+        if (SYBO == 0) then
             IFS = 0
-        else if (SYBO.EQ.1) then
+        else if (SYBO == 1) then
             IFS = 2
         else
-            print*, 'Warning: SYBO must be 0 or 1.'
-            print*
+            print*, 'Warning: SYBO must be 0 or 1.', new_line('a')
             IFS = 0
         end if
         
-        IF (NPET.GE.0) THEN
-         NPER=IFS+NPET
-         ALLOCATE(WVNB(NPER))
-         READ(1,*) (WVNB(I),I=IFS+1,NPER)
-        ELSEIF (NPET.LT.0) THEN
-         NPET=ABS(NPET)
-         NPER=IFS+NPET
-         ALLOCATE(WVNB(NPER))
-         READ(1,'(27x,f30.15)')     WK1
-         READ(1,'(19x,f30.15)')     DWK
-         DO I=IFS+1,NPER
-          WVNB(I)=WK1+(I-IFS-1)*DWK
-         ENDDO
-        ENDIF
+        if (NPET > 0) then
+            NPER = IFS+NPET
+            allocate(WVNB(NPER))
+            read(1,*) (WVNB(I), I = IFS+1, NPER)
+        else if (NPET < 0) then
+            NPET = ABS(NPET)
+            NPER = IFS+NPET
+            allocate(WVNB(NPER))
+            read(1,'(27x,f30.15)') WK1
+            read(1,'(19x,f30.15)') DWK
+            do I= IFS+1, NPER
+                WVNB(I) = WK1 + (I-IFS-1)*DWK
+            end do
+        end if
         
-        READ(1,*)
-        READ(1,*)
-        READ(1,'(A100)') BODY_CHECK
+        read(1,*)
+        read(1,*)
+        read(1,'(A100)') BODY_CHECK
         
         ! Reading of the number of multi-bodies
-        IF (INDEX(BODY_CHECK,"multi")>0) THEN
-            READ(1,'(24x,i16)')        NBODY
-        ELSE 
+        if (INDEX(BODY_CHECK,"multi") > 0) then
+            READ(1,'(24x,i16)') NBODY
+        else 
             NBODY = 1
-        ENDIF
+        end if
         
-        IF (NBODY.LT.0) THEN
-         PRINT*, 'ERROR:The number of bodies must be greater than or equal to 1'
-         PRINT*
-         pause
-         stop
-        ENDIF
+        if (NBODY < 0) then
+            print*, "ERROR: The number of bodies must be greater than or equal to 1.", new_line('a')
+            print*, "Terminating application."
+            stop
+        end if
+        
         ! Obtaining the origin coordinates of the LCS per mesh as well as the rotation w.r.t GCS
-        IF (NBODY.GT.1) THEN
-         ALLOCATE(LCS_MULTI(NBODY,4))
-         DO NB=1,NBODY
-          READ(1,'(26x,4f12.3)')      (LCS_MULTI(NB,I), I=1,4)
-         ENDDO
-        ENDIF
-        IF (NBODY.GT.1) THEN        
-        READ(1,*) 
-        READ(1,*)
-        READ(1,*) 
-        ENDIF
-        READ(1,'(23x,i16)')        NBETA
-        IF (NBETA.GT.0) THEN
-         ALLOCATE(WVHD(NBETA))
-         READ(1,*) (WVHD(I),I=1,NBETA)
-        ELSEIF (NBETA.LT.0) THEN
-         NBETA=ABS(NBETA)
-         ALLOCATE(WVHD(NBETA))
-         READ(1,'(20x,f30.15)')     BETA1
-         READ(1,'(17x,f30.15)')     DBETA
-         DO I=1,NBETA
-          WVHD(I)=BETA1+(I-1)*DBETA
-         ENDDO
-        ENDIF
+        if (NBODY > 1) then
+            allocate(LCS_MULTI(NBODY,4))
+            do NB = 1, NBODY
+                read(1,'(26x,4f12.3)')      (LCS_MULTI(NB,I), I=1,4)
+            end do
+        end if
+        if (NBODY > 1) then        
+            read(1,*) 
+            read(1,*)
+            read(1,*) 
+        end if
         
-        READ(1,*) 
-        READ(1,*)
-        IF (NBODY.EQ.1) THEN
-         READ(1,'(30x,3f12.3)')      (XR(I), I=1,3)                          
-         WRITE(9,*) "The rotation center is input as (please confirm if it is correct):" ! This is written into the Errorcheck.txt
-         WRITE(9,'(3f12.3)') (XR(I), I=1,3)
-        ELSEIF (NBODY.GT.1) THEN
-         ALLOCATE(XR_MULTI(NBODY,3))
-         WRITE(9,*) "The rotation center for the bodies are input as (please confirm if it is correct):" ! This is written into the Errorcheck.txt
-         DO NB=1,NBODY
-          READ(1,'(28x,3f12.3)')      (XR_MULTI(NB,I), I=1,3)
-          WRITE(9,'(3f12.3)') (XR_MULTI(NB,I), I=1,3)
-         ENDDO
-        ENDIF
-        READ(1,'(26x,f30.15)')     REFL
-        READ(1,'(26x,i16)')        ISOL
-        READ(1,'(23x,i16)')        IRSP
-        READ(1,'(23x,i16)')        NTHREAD
+        read(1,'(23x,i16)') NBETA
         
-        if (IRSP .NE. 0) then ! Checks if the waterplane mesh is there for a single body. For multi-bodies, this is added to the HAMS_Prog
-            if (NBODY .EQ. 1) then
+        if (NBETA > 0) then
+            allocate(WVHD(NBETA))
+            read(1,*) (WVHD(I),I=1,NBETA)
+        else if (NBETA < 0) then
+            NBETA = ABS(NBETA)
+            allocate(WVHD(NBETA))
+            read(1,'(20x,f30.15)') BETA1
+            read(1,'(17x,f30.15)') DBETA
+            do I = 1, NBETA
+                WVHD(I)=BETA1+(I-1)*DBETA
+            end do
+        end if
+        
+        read(1,*) 
+        read(1,*)
+        if (NBODY == 1) then
+            read(1,'(30x,3f12.3)') (XR(I), I=1,3)                          
+            write(9,*) "The rotation center is input as (please confirm if it is correct):" ! This is written into the Errorcheck.txt
+            write(9,'(3f12.3)') (XR(I), I=1,3)
+        else if (NBODY > 1) then
+            allocate(XR_MULTI(NBODY,3))
+            write(9,*) "The rotation center for the bodies are input as (please confirm if it is correct):" ! This is written into the Errorcheck.txt
+            do NB = 1, NBODY
+                read(1,'(28x,3f12.3)') (XR_MULTI(NB,I), I=1,3)
+                write(9,'(3f12.3)') (XR_MULTI(NB,I), I=1,3)
+            end do
+        end if
+        read(1,'(26x,f30.15)')     REFL
+        read(1,'(26x,i16)')        ISOL
+        read(1,'(23x,i16)')        IRSP
+        read(1,'(23x,i16)')        NTHREAD
+        
+        if (IRSP .ne. 0) then ! Checks if the waterplane mesh is there for a single body. For multi-bodies, this is added to the HAMS_Prog
+            if (NBODY == 1) then
                 open(5, file=dir//'/WaterPlaneMesh.pnl', status='OLD', iostat=err)
-                if (err /= 0) then
-                    print*, 'Error: The waterplane mesh file does not exist.'
-                    print*
+                if (err .ne. 0) then
+                    print*, 'Error: The waterplane mesh file does not exist.', new_line('a')
                     stop
                 endif
             end if
         end if
 
-        READ(1,*) 
-        READ(1,*) 
-        READ(1,'(27x,i16)')        NFP
-        ALLOCATE(XFP(NFP,3))
-        DO I=1,NFP
+        read(1,*) 
+        read(1,*) 
+        read(1,'(27x,i16)')        NFP
+        allocate(XFP(NFP,3))
+        do I = 1,NFP
             ! READ(1,'(26x,3(1x,f10.4))')     (XFP(I,J), J=1,3)
-           READ(1,*)     (XFP(I,J), J=1,3)
-        ENDDO
+            read(1,*) (XFP(I,J), J=1,3)
+        end do
 
         success = .true.
 
@@ -208,13 +208,13 @@ module IO
             istr = '1'
             inquire(file=dir//"/HullMesh.pnl", exist=hullexists)
             inquire(file=dir//"/Hydrostatic.in", exist=hydroexists)
-            inquire(file=dir//"WaterPlaneMesh.pnl", exist=wpmexists)
+            inquire(file=dir//"/WaterPlaneMesh.pnl", exist=wpmexists)
         else if (numbodies > 1) then
             do i = 1, numbodies
                 write(istr, '(I1)') i   ! Convert i to str
                 inquire(file=dir//"/HullMesh_"//istr//".pnl", exist=hullexists)
                 inquire(file=dir//"/Hydrostatic_"//istr//".in", exist=hydroexists)
-                inquire(file=dir//"WaterPlaneMesh_"//istr//".pnl", exist=wpmexists)
+                inquire(file=dir//"/WaterPlaneMesh_"//istr//".pnl", exist=wpmexists)
                 if ((.not. hullexists) .or. (.not. hydroexists) .or. (.not. wpmexists)) then
                     exit
                 end if
@@ -340,33 +340,23 @@ module IO
         character(len=*), intent(in) :: outputdir
         integer, intent(in) :: numbodies
         logical, intent(out) :: success
-        logical :: hams, wamit, hydro
 
         ! Create output directories
         call CreateDirectory(outputdir, success)
         if (success) then
-            call CreateDirectory(outputdir // "/Hams_format", hams)
-            call CreateDirectory(outputdir // "/Wamit_format", wamit)
-            call CreateDirectory(outputdir // "/Hydrostar_format", hydro)
+            call CreateDirectory(outputdir // "/Hams_format", success)
+            call CreateDirectory(outputdir // "/Wamit_format", success)
+            if (numbodies == 1) then
+                call CreateDirectory(outputdir // "/Hydrostar_format", success)
+            end if
         end if
 
         ! Exit if directories were not created
-        if (.not. hams) then
-            print*, "Could not create Hams_format output directory"
+        if (.not. success) then
             success = .false.
             return
         end if
-        if (.not. wamit) then
-            print*, "Could not create Wamit_format output directory"
-            success = .false.
-            return
-        end if
-        if (.not. hydro) then
-            print *, "Could not create Hydrostar_format output directory."
-            success = .false.
-            return
-        end if
-
+        
         call CreateHamsFiles(outputdir//"/Hams_format")
         call CreateWamitFiles(outputdir//"/Wamit_format", numbodies)
         if (numbodies == 1) then
