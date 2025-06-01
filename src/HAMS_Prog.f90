@@ -61,705 +61,697 @@
 
 !  ---------------------------------------------------------------------------------------------------------
 !  
-PROGRAM HAMS_MREL
+program HAMS_MREL
     
-      USE IO
-      USE AssbMatx
-      USE AssbMatxMulti
-      USE AssbMatx_irr
-      USE AssbMatx_irrMulti
-      USE CalGreenFunc
-      USE CalGreenFuncMulti
-      USE ReadPanelMesh
-      USE ReadPanelMeshMulti
-      USE LinearMatrix_mod
-      USE HydroStatic
-      USE HydroStaticMulti
-      USE ImplementSubs
-      USE PotentWavForce
-      USE PotentWavForceMulti
-      USE PrintOutput
-      USE Potentials_mod
-      USE PressureElevation
-      USE PressureElevationMulti
-      USE FieldOutput_mod
-      USE omp_lib
+    use IO
+    use AssbMatx
+    use AssbMatxMulti
+    use AssbMatx_irr
+    use AssbMatx_irrMulti
+    use CalGreenFunc
+    use CalGreenFuncMulti
+    use ReadPanelMesh
+    use ReadPanelMeshMulti
+    use LinearMatrix_mod
+    use HydroStatic
+    use HydroStaticMulti
+    use ImplementSubs
+    use PotentWavForce
+    use PotentWavForceMulti
+    use PrintOutput
+    use Potentials_mod
+    use PressureElevation
+    use PressureElevationMulti
+    use FieldOutput_mod
+    use omp_lib
 
-      IMPLICIT NONE  
-      
-      INTEGER II,KK,MD,MD1,MD2,FILE_M,FILE_N,NELEM_GLOBAL,err,argcount
-      INTEGER,ALLOCATABLE:: NELEM_TOTAL_RAD(:)
-      CHARACTER(LEN=100) FILE_NUMBER,MESH_MULTI,HYDROSTATIC_MULTI, WATERPLANEMESH_MULTI
-      CHARACTER(LEN=260) inputdir, outputdir ! 260 is the max lengths for paths on Windows
-      LOGICAL :: success
-
-!======================================================================      
-!
-    print*
+    implicit none  
     
-    Write(*,'(80A)') ' ------------------------HAMS (Hydrodynamic Analysis of Marine Structures)---------------------'
+    integer :: II,KK,MD,MD1,MD2,FILE_M,FILE_N,NELEM_GLOBAL,err,argcount
+    integer, allocatable :: NELEM_TOTAL_RAD(:)
+    character(len=100) :: FILE_NUMBER,MESH_MULTI,HYDROSTATIC_MULTI, WATERPLANEMESH_MULTI
+    character(len=260) :: inputdir, outputdir ! 260 is the max lengths for paths on Windows
+    logical :: success
+
     print*
-    Write(*,'(20x,20A,10x)') '                                     Code Original Author: Yingyi Liu'
+    write(*,'(80A)') ' ------------------------HAMS (Hydrodynamic Analysis of Marine Structures)---------------------'
     print*
-    Write(*,'(80A)') '  HAMS is an open-source software for computing wave diffraction and radiation of 3D structures.'
+    write(*,'(20x,20A,10x)') '                                     Code Original Author: Yingyi Liu'
     print*
-    Write(*,'(200A)') ' Please cite the following papers in your publications, reports, etc., when HAMS has been used in your work:'
+    write(*,'(80A)') '  HAMS is an open-source software for computing wave diffraction and radiation of 3D structures.'
     print*
-    Write(*,'(200A)') '  (1) Yingyi Liu. (2019).'
-    Write(*,'(200A)') '      HAMS: A Frequency-Domain Preprocessor for Wave-Structure Interactions—'
-    Write(*,'(200A)') '      Theory, Development, and Application. Journal of Marine Science and Engineering, 7(3), 81.'
+    write(*,'(200A)') ' Please cite the following papers in your publications, reports, etc., when HAMS has been used in your work:'
     print*
-    Write(*,'(200A)') '  (2) Yingyi Liu et al. (2018). '
-    Write(*,'(200A)') '      A reliable open-source package for performance evaluation of floating renewable energy systems'
-    Write(*,'(200A)') '      in coastal and offshore regions. Energy Conversion and Management, 174: 516-536.'
+    write(*,'(200A)') '  (1) Yingyi Liu. (2019).'
+    write(*,'(200A)') '      HAMS: A Frequency-Domain Preprocessor for Wave-Structure Interactions—'
+    write(*,'(200A)') '      Theory, Development, and Application. Journal of Marine Science and Engineering, 7(3), 81.'
     print*
-    Write(*,'(200A)') '  (3) Yingyi Liu et al. (2016).'
-    Write(*,'(200A)') '      Motion response prediction by hybrid panel-stick models for a semi-submersible with bracings.'
-    Write(*,'(200A)') '      Journal of Marine Science and Technology, 21: 742-757.'
+    write(*,'(200A)') '  (2) Yingyi Liu et al. (2018). '
+    write(*,'(200A)') '      A reliable open-source package for performance evaluation of floating renewable energy systems'
+    write(*,'(200A)') '      in coastal and offshore regions. Energy Conversion and Management, 174: 516-536.'
     print*
-    Write(*,'(200A)') '  (4) Yingyi Liu et al. (2015).'
-    Write(*,'(200A)') '      A calculation method for finite depth free-surface green function.'
-    Write(*,'(200A)') '      International Journal of Naval Architecture and Ocean Engineering, 7: 375-389.'
+    write(*,'(200A)') '  (3) Yingyi Liu et al. (2016).'
+    write(*,'(200A)') '      Motion response prediction by hybrid panel-stick models for a semi-submersible with bracings.'
+    write(*,'(200A)') '      Journal of Marine Science and Technology, 21: 742-757.'
     print*
-    Write(*,'(200A)') '  Paper list to be continued...'
+    write(*,'(200A)') '  (4) Yingyi Liu et al. (2015).'
+    write(*,'(200A)') '      A calculation method for finite depth free-surface green function.'
+    write(*,'(200A)') '      International Journal of Naval Architecture and Ocean Engineering, 7: 375-389.'
     print*
-    Write(*,'(80A)') ' -----------------------------------------------------------------------------------------------'
-    
+    write(*,'(200A)') '  Paper list to be continued...'
     print*
-!
-!======================================================================        
-      ALLOCATE(LCS_MULTI(1,1))                     ! This is only to be able to use LCS_MULTI in the main HAMS application
-      DEALLOCATE(LCS_MULTI)
+    write(*,'(80A)') ' -----------------------------------------------------------------------------------------------'
+    print*
+
+    allocate(LCS_MULTI(1,1)) ! This is only to be able to use LCS_MULTI in the main HAMS application
+    deallocate(LCS_MULTI)
       
-        ! Define output and output directories
-        argcount = command_argument_count()
-        if (argcount == 2) then
-            call get_command_argument(1, inputdir)
-            call get_command_argument(2, outputdir)
-        else
-            inputdir = "Input"
-            outputdir = "Output"
-        endif
-        write(*,*) ' Input directory:                ', trim(inputdir)
-        write(*,*) ' Output directory:               ', trim(outputdir), new_line('a')
+    ! Define output and output directories
+    argcount = command_argument_count()
+    if (argcount == 2) then
+        call get_command_argument(1, inputdir)
+        call get_command_argument(2, outputdir)
+    else
+        inputdir = "Input"
+        outputdir = "Output"
+    endif
+    write(*,*) ' Input directory:                ', trim(inputdir)
+    write(*,*) ' Output directory:               ', trim(outputdir), new_line('a')
 
-        ! Read and check for input files
-        call ReadControlFile(trim(inputdir), success)
-        if (.not. success) then
-            print*, "Error encountered reading input file ControlFile.in. Terminating application."
-            stop
-        end if
-        call VerifyInputFilesExist(trim(inputdir), NBODY, IRSP, success)
-        if (.not. success) then
-            print*, "Input files missing. Terminating application."
-            stop
-        end if
+    ! Read and check for input files
+    call ReadControlFile(trim(inputdir), success)
+    if (.not. success) then
+        print*, "Error encountered reading input file ControlFile.in. Terminating application."
+        stop
+    end if
+    call VerifyInputFilesExist(trim(inputdir), NBODY, IRSP, success)
+    if (.not. success) then
+        print*, "Input files missing. Terminating application."
+        stop
+    end if
 
-        ! Create output files and directories
-        call CreateOutputFiles(trim(outputdir), NBODY, success)
-        if (.not. success) then
-            print *, "Error encountered creating output directories. Terminating application."
-            stop
-        end if
+    ! Create output files and directories
+    call CreateOutputFiles(trim(outputdir), NBODY, success)
+    if (.not. success) then
+        print *, "Error encountered creating output directories. Terminating application."
+        stop
+    end if
 
-      CALL OMP_SET_NUM_THREADS(nthread)
+    call OMP_SET_NUM_THREADS(nthread)
 
-      write(*,*) ' Number of machine processors:   ',omp_get_num_procs()
-      write(*,*) ' Number of OpenMP threads:       ',nthread      
-      write(*,*) ' Maximum number of threads:      ',omp_get_max_threads()
-      write(*,*) ' The No. of the current thread:  ',omp_get_num_threads()
-      write(*,*) 
-      
-      ! Reading the mesh file and Hydrostatic file
-      IF (NBODY.EQ.1) THEN
-       open(2, file=trim(inputdir)//"/HullMesh.pnl", status="old", action="read")
-       open(4, file=trim(inputdir)//"/Hydrostatic.in", status="old", action="read")
-       if (IRSP .ne. 0) then
+    write(*,*) ' Number of machine processors:   ',omp_get_num_procs()
+    write(*,*) ' Number of OpenMP threads:       ',nthread      
+    write(*,*) ' Maximum number of threads:      ',omp_get_max_threads()
+    write(*,*) ' The No. of the current thread:  ',omp_get_num_threads()
+    write(*,*) 
+
+    if (NBODY == 1) then
+        ! Reading the mesh, hydrostatic and water plane mesh files
+        open(2, file=trim(inputdir)//"/HullMesh.pnl", status="old", action="read")
+        open(4, file=trim(inputdir)//"/Hydrostatic.in", status="old", action="read")
+        if (IRSP .ne. 0) then
             open(5, file=trim(inputdir)//"/WaterPlaneMesh.pnl", status="old", action="read")
-       end if
+        end if
      
-       DO II=1,3
-        READ(2,*)
-       ENDDO
+        do II = 1,3
+            read(2,*)
+        end do
          
-       IF (IRSP.NE.0) THEN                                                 ! IRSP (Irregular frequencies are only implemented for single bodies at the moment)
-         DO II=1,3
-          READ(5,*)
-         ENDDO
-       ENDIF
+        if (IRSP .ne. 0) then ! IRSP (Irregular frequencies are only implemented for single bodies at the moment)
+            do II=1,3
+                read(5,*)
+            end do
+        end if
         
-       READ(2,*) NELEM, NTND, ISX, ISY
+        read(2,*) NELEM, NTND, ISX, ISY
 
-       DO II=1,2
-        READ(2,*)
-       ENDDO
+        do II=1,2
+            read(2,*)
+        end do
 
-       IF (IRSP.EQ.0) THEN
-         TNTND=NTND
-         TNELEM=NELEM
-       ELSE
-         READ(5,*) INELEM, INTND, ISX, ISY
-         TNTND=NTND+INTND
-         TNELEM=NELEM+INELEM
-         ALLOCATE(iXYZ(INTND,3),iDS(INELEM),iPNSZ(INELEM))
-         ALLOCATE(iNCN(INELEM),iNCON(INELEM,4))
-         ALLOCATE(iXYZ_P(INELEM,3),iDXYZ_P(INELEM,6))
-         DO II=1,2
-           READ(5,*)
-         ENDDO
-       ENDIF
+        IF (IRSP.EQ.0) THEN
+            TNTND=NTND
+            TNELEM=NELEM
+        ELSE
+            READ(5,*) INELEM, INTND, ISX, ISY
+            TNTND=NTND+INTND
+            TNELEM=NELEM+INELEM
+            ALLOCATE(iXYZ(INTND,3),iDS(INELEM),iPNSZ(INELEM))
+            ALLOCATE(iNCN(INELEM),iNCON(INELEM,4))
+            ALLOCATE(iXYZ_P(INELEM,3),iDXYZ_P(INELEM,6))
+            DO II=1,2
+                READ(5,*)
+            ENDDO
+        ENDIF
 
-       IF (ISX.EQ.0.AND.ISY.EQ.0) THEN
-         ISYS=0
-         NSYS=1
-       ELSEIF (ISX.EQ.1.AND.ISY.EQ.1) THEN
-         print*, ' Warning: at present, ISX and ISY cannot be simultaneously 1.'
-         STOP
-       ELSE
-         ISYS=1
-         NSYS=2
-       ENDIF
+        IF (ISX.EQ.0.AND.ISY.EQ.0) THEN
+            ISYS=0
+            NSYS=1
+        ELSEIF (ISX.EQ.1.AND.ISY.EQ.1) THEN
+            print*, ' Warning: at present, ISX and ISY cannot be simultaneously 1.'
+            STOP
+        ELSE
+            ISYS=1
+            NSYS=2
+        ENDIF
          
-       ALLOCATE(XYZ(NTND,3),DS(NELEM),PNSZ(NELEM))
-       ALLOCATE(NCN(NELEM),NCON(NELEM,4))
-       ALLOCATE(XYZ_P(NELEM,3),DXYZ_P(NELEM,6))
+        ALLOCATE(XYZ(NTND,3),DS(NELEM),PNSZ(NELEM))
+        ALLOCATE(NCN(NELEM),NCON(NELEM,4))
+        ALLOCATE(XYZ_P(NELEM,3),DXYZ_P(NELEM,6))
        
-       CALL ReadBodyMesh
+        CALL ReadBodyMesh
        
-       IF (IRSP.NE.0) THEN 
-        CALL ReadWTPLMesh
-       ENDIF
+        IF (IRSP.NE.0) THEN 
+            CALL ReadWTPLMesh
+        ENDIF
        
-       ALLOCATE(AMAT(TNELEM,TNELEM,NSYS),BRMAT(TNELEM,6,NSYS),BDMAT(TNELEM,NSYS),IPIV(NELEM,NSYS))
-       ALLOCATE(CGRN(NELEM,NELEM,NSYS,4),RKBN(NELEM,NELEM,NSYS,4))
-       ALLOCATE(MXPOT(NELEM,7,NSYS),WVFQ(NPER),EXFC(NPER,NBETA,6),DSPL(NPER,NBETA,6),AMAS(NPER,6,6),BDMP(NPER,6,6))
+        ALLOCATE(AMAT(TNELEM,TNELEM,NSYS),BRMAT(TNELEM,6,NSYS),BDMAT(TNELEM,NSYS),IPIV(NELEM,NSYS))
+        ALLOCATE(CGRN(NELEM,NELEM,NSYS,4),RKBN(NELEM,NELEM,NSYS,4))
+        ALLOCATE(MXPOT(NELEM,7,NSYS),WVFQ(NPER),EXFC(NPER,NBETA,6),DSPL(NPER,NBETA,6),AMAS(NPER,6,6),BDMP(NPER,6,6))
        
-       IF (IRSP.EQ.1) THEN
-        ALLOCATE(DGRN(INELEM,NELEM,NSYS,4),PKBN(INELEM,NELEM,NSYS,4))
-        ALLOCATE(CMAT(NELEM,NELEM,NSYS),DRMAT(NELEM,6,NSYS),DDMAT(NELEM,NSYS))
-       ENDIF
+        IF (IRSP.EQ.1) THEN
+            ALLOCATE(DGRN(INELEM,NELEM,NSYS,4),PKBN(INELEM,NELEM,NSYS,4))
+            ALLOCATE(CMAT(NELEM,NELEM,NSYS),DRMAT(NELEM,6,NSYS),DDMAT(NELEM,NSYS))
+        ENDIF
        
-       CALL Initialisation
+        CALL Initialisation
      
-       CALL ReadHydroStatic
+        CALL ReadHydroStatic
        
-       CALL CalNormals(IRSP)
+        CALL CalNormals(IRSP)
 
         DO MD1=1,5
-           CLOSE(MD1)
+            CLOSE(MD1)
         ENDDO
       
-       write(*,*) ' Number of geometrial symmetries:',ISYS
-       write(*,*) ' Number of panels on the hull:   ',NELEM
-       write(*,*) ' Number of panels on waterplanes:',INELEM
-       PRINT*
-       write(*,*) ' Radiation-diffraction computation starts...'
+        write(*,*) ' Number of geometrial symmetries:',ISYS
+        write(*,*) ' Number of panels on the hull:   ',NELEM
+        write(*,*) ' Number of panels on waterplanes:',INELEM
+        PRINT*
+        write(*,*) ' Radiation-diffraction computation starts...'
        
-         DO KK=1,NPER
+        DO KK=1,NPER
  
-         CALL CalWaveProperts(KK)                        ! Calculation of the incident wave properties. This will remain the same for both single and multi-bodies with and without irregular frequency removal.
+            CALL CalWaveProperts(KK)                        ! Calculation of the incident wave properties. This will remain the same for both single and multi-bodies with and without irregular frequency removal.
 
-         IF (INFT.EQ.1.or.INFT.EQ.2) THEN
-          WRITE(6,1010) INFR
-         ELSEIF (INFT.EQ.3) THEN
-          WRITE(6,1030) INFR
-         ELSEIF (INFT.EQ.4) THEN
-          WRITE(6,1040) INFR
-         ELSEIF (INFT.EQ.5) THEN
-          WRITE(6,1050) INFR
-         ENDIF
+            IF (INFT.EQ.1.or.INFT.EQ.2) THEN
+                WRITE(6,1010) INFR
+            ELSEIF (INFT.EQ.3) THEN
+                WRITE(6,1030) INFR
+            ELSEIF (INFT.EQ.4) THEN
+                WRITE(6,1040) INFR
+            ELSEIF (INFT.EQ.5) THEN
+                WRITE(6,1050) INFR
+            ENDIF
          
-         ! Solving the radiation problem
-         IF (IRSP.EQ.0) THEN                     
-            CALL CALGREEN
-            CALL ASSB_LEFT(AMAT,IPIV,NELEM,NSYS)
-            CALL ASSB_RBC(BRMAT,NELEM,NSYS)
-            CALL RADIATION_SOLVER(AMAT,BRMAT,IPIV,MXPOT,NELEM,NSYS)
-         ELSEIF (IRSP.EQ.1) THEN                                         
-           CALL CALGREEN_IRR
-           CALL ASSB_LEFT_IRR(AMAT,CMAT,IPIV,NELEM,TNELEM,NSYS)
-           CALL ASSB_RBC_IRR(BRMAT,DRMAT,AMAT,NELEM,TNELEM,NSYS)
-           CALL RADIATION_SOLVER_IRR(CMAT,DRMAT,IPIV,MXPOT,NELEM,NSYS)
-         ENDIF
+            ! Solving the radiation problem
+            IF (IRSP.EQ.0) THEN                     
+                CALL CALGREEN
+                CALL ASSB_LEFT(AMAT,IPIV,NELEM,NSYS)
+                CALL ASSB_RBC(BRMAT,NELEM,NSYS)
+                CALL RADIATION_SOLVER(AMAT,BRMAT,IPIV,MXPOT,NELEM,NSYS)
+            ELSEIF (IRSP.EQ.1) THEN                                         
+                CALL CALGREEN_IRR
+                CALL ASSB_LEFT_IRR(AMAT,CMAT,IPIV,NELEM,TNELEM,NSYS)
+                CALL ASSB_RBC_IRR(BRMAT,DRMAT,AMAT,NELEM,TNELEM,NSYS)
+                CALL RADIATION_SOLVER_IRR(CMAT,DRMAT,IPIV,MXPOT,NELEM,NSYS)
+            ENDIF
 
-        CALL RFORCE(WK,W1,TP,AMAS(KK,:,:),BDMP(KK,:,:))
-        CALL OutputPressureElevation_Radiation(64)                ! This needs to be implemented for multi-bodies
+            CALL RFORCE(WK,W1,TP,AMAS(KK,:,:),BDMP(KK,:,:))
+            CALL OutputPressureElevation_Radiation(64)                ! This needs to be implemented for multi-bodies
         
-        ! Solving the diffraction problem 
-        DO II=1,NBETA
+            ! Solving the diffraction problem 
+            DO II=1,NBETA
 
-         BETA=WVHD(II)*PI/180.0D0
-         WRITE(6,3000) WVHD(II)
+                BETA=WVHD(II)*PI/180.0D0
+                WRITE(6,3000) WVHD(II)
          
-         IF (IRSP.EQ.0) THEN
-           CALL ASSB_DBC(BDMAT,NELEM,NSYS)
-           CALL DIFFRACTION_SOLVER(AMAT,BDMAT,IPIV,MXPOT,NELEM,NSYS)
-         ELSEIF (IRSP.EQ.1) THEN
-           CALL ASSB_DBC_IRR(BDMAT,DDMAT,AMAT,NELEM,TNELEM,NSYS)
-           CALL DIFFRACTION_SOLVER_IRR(CMAT,DDMAT,IPIV,MXPOT,NELEM,NSYS)
-         ENDIF
+                IF (IRSP.EQ.0) THEN
+                    CALL ASSB_DBC(BDMAT,NELEM,NSYS)
+                    CALL DIFFRACTION_SOLVER(AMAT,BDMAT,IPIV,MXPOT,NELEM,NSYS)
+                ELSEIF (IRSP.EQ.1) THEN
+                    CALL ASSB_DBC_IRR(BDMAT,DDMAT,AMAT,NELEM,TNELEM,NSYS)
+                    CALL DIFFRACTION_SOLVER_IRR(CMAT,DDMAT,IPIV,MXPOT,NELEM,NSYS)
+                ENDIF
         
-          CALL EFORCE(WK,W1,TP,BETA,AMP,EXFC(KK,II,:))
-          CALL SolveMotion(W1,TP,OUFR,BETA,AMP,AMAS(KK,:,:),BDMP(KK,:,:),BLNR,BQDR,EXFC(KK,II,:),DSPL(KK,II,:))           ! Has to be implemented for multi-bodies
-          CALL OutputPressureElevation_Diffraction(64)                  ! Has to be implemented for multi-bodies
-        ENDDO
+                CALL EFORCE(WK,W1,TP,BETA,AMP,EXFC(KK,II,:))
+                CALL SolveMotion(W1,TP,OUFR,BETA,AMP,AMAS(KK,:,:),BDMP(KK,:,:),BLNR,BQDR,EXFC(KK,II,:),DSPL(KK,II,:))           ! Has to be implemented for multi-bodies
+                CALL OutputPressureElevation_Diffraction(64)                  ! Has to be implemented for multi-bodies
+            ENDDO
         
-       ENDDO
-       
-       DO KK=1,NPER
-       
-        DO MD1=1,6
-        DO MD2=1,6
-         CALL PrintBody_RealVal(70+10*(MD1-1)+MD2,WVFQ(KK),NBETA,'AddedMass',AMAS(KK,MD1,MD2))
-         CALL PrintBody_RealVal(130+10*(MD1-1)+MD2,WVFQ(KK),NBETA,'WaveDamping',BDMP(KK,MD1,MD2))
         ENDDO
-        ENDDO
-        
-         DO MD=1,6
-          CALL PrintBody_CmplxVal( 190+MD,WVFQ(KK),NBETA,'Excitation',EXFC(KK,:,MD))
-          CALL PrintBody_CmplxVal(200+MD,WVFQ(KK),NBETA,'Motion',DSPL(KK,:,MD))
-         ENDDO
        
-       ENDDO
-! ================================================================
+        DO KK=1,NPER
+            DO MD1=1,6
+                DO MD2=1,6
+                    CALL PrintBody_RealVal(70+10*(MD1-1)+MD2,WVFQ(KK),NBETA,'AddedMass',AMAS(KK,MD1,MD2))
+                    CALL PrintBody_RealVal(130+10*(MD1-1)+MD2,WVFQ(KK),NBETA,'WaveDamping',BDMP(KK,MD1,MD2))
+                ENDDO
+            ENDDO
+            DO MD=1,6
+                CALL PrintBody_CmplxVal( 190+MD,WVFQ(KK),NBETA,'Excitation',EXFC(KK,:,MD))
+                CALL PrintBody_CmplxVal(200+MD,WVFQ(KK),NBETA,'Motion',DSPL(KK,:,MD))
+            ENDDO
+        ENDDO
+
+        ! ================================================================
 
         DO MD=1,6
-         CALL PrintEnd(190+MD)
-         CALL PrintEnd(200+MD)
+            CALL PrintEnd(190+MD)
+            CALL PrintEnd(200+MD)
         ENDDO
         
         DO MD1=1,6
-        DO MD2=1,6
-         CALL PrintEnd(70+10*(MD1-1)+MD2)
-         CALL PrintEnd(130+10*(MD1-1)+MD2)
-        ENDDO
+            DO MD2=1,6
+                CALL PrintEnd(70+10*(MD1-1)+MD2)
+                CALL PrintEnd(130+10*(MD1-1)+MD2)
+            ENDDO
         ENDDO
         
-       DEALLOCATE(XYZ,DS,NCN,NCON,XYZ_P,DXYZ_P)
-       DEALLOCATE(AMAT,BRMAT,BDMAT,CGRN,RKBN,IPIV)
-       DEALLOCATE(MXPOT,EXFC,DSPL,AMAS,BDMP)
-       DEALLOCATE(WVFQ,WVHD,WVNB,XFP,PNSZ)
+        DEALLOCATE(XYZ,DS,NCN,NCON,XYZ_P,DXYZ_P)
+        DEALLOCATE(AMAT,BRMAT,BDMAT,CGRN,RKBN,IPIV)
+        DEALLOCATE(MXPOT,EXFC,DSPL,AMAS,BDMP)
+        DEALLOCATE(WVFQ,WVHD,WVNB,XFP,PNSZ)
        
-       IF (IRSP.EQ.1) THEN
-        DEALLOCATE(iXYZ,IDS,INCN,INCON,iXYZ_P,IDXYZ_P)
-        DEALLOCATE(CMAT,DRMAT,DDMAT,DGRN,PKBN,iPNSZ)
-       ENDIF
+        IF (IRSP.EQ.1) THEN
+            DEALLOCATE(iXYZ,IDS,INCN,INCON,iXYZ_P,IDXYZ_P)
+            DEALLOCATE(CMAT,DRMAT,DDMAT,DGRN,PKBN,iPNSZ)
+        ENDIF
        
-       write(*,*) 
-       write(*,*) ' Congratulations! Your computation completes successfully.'
-       write(*,*)
+        write(*,*) 
+        write(*,*) ' Congratulations! Your computation completes successfully.'
+        write(*,*)
 
-!====================================================================================
-1600   FORMAT(//, ' Total CPU Time of computation was',F12.3, '  seconds')
-1700   FORMAT(//, ' Elapsed Time in computation was',F12.3, '  seconds')
-1010   FORMAT(/,10x,'Wave Number =',F9.3,' 1/m')
-1030   FORMAT(/,10x,'Wave Frequency =',F9.3,' rad/s')
-1040   FORMAT(/,10x,'Wave Period =',F9.3,'  s')
-1050   FORMAT(/,10x,'Wave Length =',F9.3,' m')
-3000   FORMAT(12x,'Wave Heading =',F9.3,' Degree')
+        !====================================================================================
+        1600   FORMAT(//, ' Total CPU Time of computation was',F12.3, '  seconds')
+        1700   FORMAT(//, ' Elapsed Time in computation was',F12.3, '  seconds')
+        1010   FORMAT(/,10x,'Wave Number =',F9.3,' 1/m')
+        1030   FORMAT(/,10x,'Wave Frequency =',F9.3,' rad/s')
+        1040   FORMAT(/,10x,'Wave Period =',F9.3,'  s')
+        1050   FORMAT(/,10x,'Wave Length =',F9.3,' m')
+        3000   FORMAT(12x,'Wave Heading =',F9.3,' Degree')
         
         DO MD1=2,20
-        DO MD2=1,6
-           IF (MD1.EQ.6.AND.MD2.EQ.6) THEN
-              CONTINUE
-           ENDIF
-           CLOSE(10*MD1+MD2)
-        ENDDO
+            DO MD2=1,6
+                IF (MD1.EQ.6.AND.MD2.EQ.6) THEN
+                    CONTINUE
+                ENDIF
+                CLOSE(10*MD1+MD2)
+            ENDDO
         ENDDO
       
-      ELSEIF (NBODY.GT.1) THEN
+    else if (NBODY > 1) then
           
-       ALLOCATE (NELEM_MULTI(NBODY), NTND_MULTI(NBODY))
-       IF (IRSP.NE.0) THEN     ! Irregular frequency removal
-        WRITE(*,*) 'Removal of irregular frequencies has been activated.'    
-        ALLOCATE (iNELEM_MULTI(NBODY), iNTND_MULTI(NBODY))
-        NELEM_TOTAL = 0        ! Total number of panels in the hull meshes
-        NTND_TOTAL = 0         ! Total number of nodes in the hull meshes
-        iNELEM_TOTAL = 0       ! Total number of panels in the water plane meshes
-        iNTND_TOTAL = 0        ! Total number of nodes in the water plane meshes
-       ELSE
-         WRITE(*,*) 'No removal of irregular frequencies.'  
-       ENDIF
-       
-       ! To obtain the body with the maximum number of elements, so as to allocate NCN, XYZ, NCON etc, a loop is used. The number of elements and nodes are assigned during this process.
-       DO FILE_M = 1,NBODY
-        ! Reading of the hull meshes to obtain the number of panels, number of nodes and the symmetry options
-        IF (FILE_M.GT.9) THEN                                                               ! To get the right file name for the hull mesh. Up to 999 bodies can be read here.
-         WRITE(FILE_NUMBER,'(I2)') FILE_M
-        ELSEIF (FILE_M.GT.99) THEN
-         WRITE(FILE_NUMBER,'(I3)') FILE_M
+        ALLOCATE (NELEM_MULTI(NBODY), NTND_MULTI(NBODY))
+        IF (IRSP.NE.0) THEN     ! Irregular frequency removal
+            WRITE(*,*) 'Removal of irregular frequencies has been activated.'    
+            ALLOCATE (iNELEM_MULTI(NBODY), iNTND_MULTI(NBODY))
+            NELEM_TOTAL = 0        ! Total number of panels in the hull meshes
+            NTND_TOTAL = 0         ! Total number of nodes in the hull meshes
+            iNELEM_TOTAL = 0       ! Total number of panels in the water plane meshes
+            iNTND_TOTAL = 0        ! Total number of nodes in the water plane meshes
         ELSE
-         WRITE(FILE_NUMBER,'(I1)') FILE_M  
-        ENDIF 
-        MESH_MULTI=trim(inputdir)//'/HullMesh_'//FILE_NUMBER
-        MESH_MULTI=TRIM(MESH_MULTI)//'.pnl'
-        OPEN(2, FILE=MESH_MULTI,        STATUS='OLD', action='READ')
-        DO II=1,3
-         READ(2,*)
-        ENDDO
-        READ(2,*) NELEM, NTND, ISX, ISY
-        NELEM_MULTI(FILE_M)=NELEM
-        NTND_MULTI(FILE_M)=NTND
-        CLOSE(2)
-        
-        ! Reading of the water plane meshes to obtain the number of panels, number of nodes and the symmetry options. In this case, if a certain water plane mesh is available then it is opened and the number of panels/nodes is retrieved.
-        IF (IRSP.NE.0) THEN
-        WATERPLANEMESH_MULTI=trim(inputdir)//'/WaterPlaneMesh_'//FILE_NUMBER
-        WATERPLANEMESH_MULTI=TRIM(WATERPLANEMESH_MULTI)//'.pnl'
-        OPEN(5, FILE=WATERPLANEMESH_MULTI, STATUS='OLD', action='READ', IOSTAT=err)
-            IF (err/=0) then
-             WRITE(*,*) 'Warning: The waterplane mesh file does not exist for Body', FILE_NUMBER
-             iNELEM_MULTI(FILE_M) = 0
-             iNTND_MULTI(FILE_M) = 0
+            WRITE(*,*) 'No removal of irregular frequencies.'  
+        ENDIF
+       
+        ! To obtain the body with the maximum number of elements, so as to allocate NCN, XYZ, NCON etc, a loop is used. The number of elements and nodes are assigned during this process.
+        DO FILE_M = 1,NBODY
+            ! Reading of the hull meshes to obtain the number of panels, number of nodes and the symmetry options
+            IF (FILE_M.GT.9) THEN   ! To get the right file name for the hull mesh. Up to 999 bodies can be read here.
+                WRITE(FILE_NUMBER,'(I2)') FILE_M
+            ELSEIF (FILE_M.GT.99) THEN
+                WRITE(FILE_NUMBER,'(I3)') FILE_M
             ELSE
-             WRITE(*,*) 'The water plane mesh is available for Body', FILE_NUMBER
-             DO II=1,3
-              READ(5,*)
-             ENDDO
-             READ(5,*) INELEM, INTND, ISX, ISY
-             iNELEM_MULTI(FILE_M) = INELEM
-             iNTND_MULTI(FILE_M) = INTND
-             CLOSE(5)
+                WRITE(FILE_NUMBER,'(I1)') FILE_M  
+            ENDIF 
+            MESH_MULTI=trim(inputdir)//'/HullMesh_'//FILE_NUMBER
+            MESH_MULTI=TRIM(MESH_MULTI)//'.pnl'
+            OPEN(2, FILE=MESH_MULTI,        STATUS='OLD', action='READ')
+            DO II=1,3
+                READ(2,*)
+            ENDDO
+            READ(2,*) NELEM, NTND, ISX, ISY
+            NELEM_MULTI(FILE_M)=NELEM
+            NTND_MULTI(FILE_M)=NTND
+            CLOSE(2)
+        
+            ! Reading of the water plane meshes to obtain the number of panels, number of nodes and the symmetry options. In this case, if a certain water plane mesh is available then it is opened and the number of panels/nodes is retrieved.
+            IF (IRSP.NE.0) THEN
+                WATERPLANEMESH_MULTI=trim(inputdir)//'/WaterPlaneMesh_'//FILE_NUMBER
+                WATERPLANEMESH_MULTI=TRIM(WATERPLANEMESH_MULTI)//'.pnl'
+                OPEN(5, FILE=WATERPLANEMESH_MULTI, STATUS='OLD', action='READ', IOSTAT=err)
+                IF (err/=0) then
+                    WRITE(*,*) 'Warning: The waterplane mesh file does not exist for Body', FILE_NUMBER
+                    iNELEM_MULTI(FILE_M) = 0
+                    iNTND_MULTI(FILE_M) = 0
+                ELSE
+                    WRITE(*,*) 'The water plane mesh is available for Body', FILE_NUMBER
+                    DO II=1,3
+                        READ(5,*)
+                    ENDDO
+                    READ(5,*) INELEM, INTND, ISX, ISY
+                    iNELEM_MULTI(FILE_M) = INELEM
+                    iNTND_MULTI(FILE_M) = INTND
+                    CLOSE(5)
+                ENDIF
             ENDIF
-        ENDIF
-       ENDDO
-       
-       ! Allocation of variables 
-       ALLOCATE(XYZ_LOCAL_MULTI(NBODY,MAXVAL(NTND_MULTI),3),XYZ_GLOBAL_MULTI(NBODY,MAXVAL(NTND_MULTI),3),DS_MULTI(NBODY,MAXVAL(NELEM_MULTI)),PNSZ_MULTI(NBODY,MAXVAL(NELEM_MULTI))) 
-       ALLOCATE(NCN_MULTI(NBODY,MAXVAL(NELEM_MULTI)),NCON_MULTI(NBODY,MAXVAL(NELEM_MULTI),4))
-       ALLOCATE(XYZ_MULTI_P(NBODY,MAXVAL(NELEM_MULTI),3),DXYZ_MULTI_P(NBODY,MAXVAL(NELEM_MULTI),6))
-       
-       IF (IRSP.EQ.1) THEN
-        ! Allocation of variables for Irregular frequency removal
-        ALLOCATE(iXYZ_LOCAL_MULTI(NBODY,MAXVAL(iNTND_MULTI),3),iXYZ_GLOBAL_MULTI(NBODY,MAXVAL(iNTND_MULTI),3),iDS_MULTI(NBODY,MAXVAL(iNELEM_MULTI)),iPNSZ_MULTI(NBODY,MAXVAL(iNELEM_MULTI)))
-        ALLOCATE(iNCN_MULTI(NBODY,MAXVAL(iNELEM_MULTI)),iNCON_MULTI(NBODY,MAXVAL(iNELEM_MULTI),4))
-        ALLOCATE(iXYZ_MULTI_P(NBODY,MAXVAL(iNELEM_MULTI),3),iDXYZ_MULTI_P(NBODY,MAXVAL(iNELEM_MULTI),6))
-       ENDIF
-       
-       ! Beginning the procedure for reading the mesh and hydrostatic files in detail.
-       IF (ISX.GT.0.OR.ISY.GT.0) THEN
-        PRINT*, 'WARNING: At present, Symmetry is only implemented along one global plane either x or y. Check this when using this option.'    ! No symmetry currently implemented warning
-       ELSE
-        PRINT*, 'No symmetry is being used for this analysis'
-       ENDIF
-       ! The mesh files are already opened before to read the number of elements, nodes etc. Then close and re-opened to read the panels info. Think this can be made more efficient.
-       DO FILE_M = 1,NBODY                                                                  ! The loop runs over all the bodies
-        IF (FILE_M.GT.9) THEN                                                               ! To get the right file name for the hull mesh. Up to 999 bodies can be read here.
-         WRITE(FILE_NUMBER,'(I2)') FILE_M
-        ELSEIF (FILE_M.GT.99) THEN
-         WRITE(FILE_NUMBER,'(I3)') FILE_M
-        ELSE
-         WRITE(FILE_NUMBER,'(I1)') FILE_M  
-        ENDIF 
-        MESH_MULTI=trim(inputdir)//'/HullMesh_'//FILE_NUMBER
-        MESH_MULTI=TRIM(MESH_MULTI)//'.pnl'
-        OPEN(2, FILE=MESH_MULTI, STATUS='OLD', action='READ')
-        
-        DO II=1,3
-         READ(2,*)
         ENDDO
-        
-        IF (IRSP.NE.0) THEN                           ! Skipping the first three lines since these do not provide any information
-         IF (iNELEM_MULTI(FILE_M).GT.0) THEN
-          WATERPLANEMESH_MULTI=trim(inputdir)//'/WaterPlaneMesh_'//FILE_NUMBER
-          WATERPLANEMESH_MULTI=TRIM(WATERPLANEMESH_MULTI)//'.pnl'
-          OPEN(5, FILE=WATERPLANEMESH_MULTI, STATUS='OLD', action='READ')
-          DO II=1,3
-           READ(5,*)
-          ENDDO
-         ENDIF
+       
+        ! Allocation of variables 
+        ALLOCATE(XYZ_LOCAL_MULTI(NBODY,MAXVAL(NTND_MULTI),3),XYZ_GLOBAL_MULTI(NBODY,MAXVAL(NTND_MULTI),3),DS_MULTI(NBODY,MAXVAL(NELEM_MULTI)),PNSZ_MULTI(NBODY,MAXVAL(NELEM_MULTI))) 
+        ALLOCATE(NCN_MULTI(NBODY,MAXVAL(NELEM_MULTI)),NCON_MULTI(NBODY,MAXVAL(NELEM_MULTI),4))
+        ALLOCATE(XYZ_MULTI_P(NBODY,MAXVAL(NELEM_MULTI),3),DXYZ_MULTI_P(NBODY,MAXVAL(NELEM_MULTI),6))
+       
+        IF (IRSP.EQ.1) THEN
+            ! Allocation of variables for Irregular frequency removal
+            ALLOCATE(iXYZ_LOCAL_MULTI(NBODY,MAXVAL(iNTND_MULTI),3),iXYZ_GLOBAL_MULTI(NBODY,MAXVAL(iNTND_MULTI),3),iDS_MULTI(NBODY,MAXVAL(iNELEM_MULTI)),iPNSZ_MULTI(NBODY,MAXVAL(iNELEM_MULTI)))
+            ALLOCATE(iNCN_MULTI(NBODY,MAXVAL(iNELEM_MULTI)),iNCON_MULTI(NBODY,MAXVAL(iNELEM_MULTI),4))
+            ALLOCATE(iXYZ_MULTI_P(NBODY,MAXVAL(iNELEM_MULTI),3),iDXYZ_MULTI_P(NBODY,MAXVAL(iNELEM_MULTI),6))
         ENDIF
+       
+        ! Beginning the procedure for reading the mesh and hydrostatic files in detail.
+        IF (ISX.GT.0.OR.ISY.GT.0) THEN
+            PRINT*, 'WARNING: At present, Symmetry is only implemented along one global plane either x or y. Check this when using this option.'    ! No symmetry currently implemented warning
+        ELSE
+            PRINT*, 'No symmetry is being used for this analysis'
+        ENDIF
+        ! The mesh files are already opened before to read the number of elements, nodes etc. Then close and re-opened to read the panels info. Think this can be made more efficient.
+        DO FILE_M = 1,NBODY ! The loop runs over all the bodies
+            IF (FILE_M.GT.9) THEN   ! To get the right file name for the hull mesh. Up to 999 bodies can be read here.
+                WRITE(FILE_NUMBER,'(I2)') FILE_M
+            ELSEIF (FILE_M.GT.99) THEN
+                WRITE(FILE_NUMBER,'(I3)') FILE_M
+            ELSE
+                WRITE(FILE_NUMBER,'(I1)') FILE_M  
+            ENDIF 
+            MESH_MULTI=trim(inputdir)//'/HullMesh_'//FILE_NUMBER
+            MESH_MULTI=TRIM(MESH_MULTI)//'.pnl'
+            OPEN(2, FILE=MESH_MULTI, STATUS='OLD', action='READ')
         
-        READ(2,*) NELEM, NTND, ISX, ISY
-        NELEM_MULTI(FILE_M)=NELEM
-        NTND_MULTI(FILE_M)=NTND
+            DO II=1,3
+                READ(2,*)
+            ENDDO
         
-        DO II=1,2
-         READ(2,*)
+            IF (IRSP.NE.0) THEN   ! Skipping the first three lines since these do not provide any information
+                IF (iNELEM_MULTI(FILE_M).GT.0) THEN
+                    WATERPLANEMESH_MULTI=trim(inputdir)//'/WaterPlaneMesh_'//FILE_NUMBER
+                    WATERPLANEMESH_MULTI=TRIM(WATERPLANEMESH_MULTI)//'.pnl'
+                    OPEN(5, FILE=WATERPLANEMESH_MULTI, STATUS='OLD', action='READ')
+                    DO II=1,3
+                        READ(5,*)
+                    ENDDO
+                ENDIF
+            ENDIF
+        
+            READ(2,*) NELEM, NTND, ISX, ISY
+            NELEM_MULTI(FILE_M)=NELEM
+            NTND_MULTI(FILE_M)=NTND
+        
+            DO II=1,2
+                READ(2,*)
+            ENDDO
+        
+            IF (IRSP.EQ.0) THEN ! IRSP (Irregular frequencies are only implemented for single bodies at the moment). Hence this is explicitly modified at this point. TNELEM and TNTND variable are used only when removal of irregular frequencies happens                                                           
+                TNTND=TNTND+NTND                                                                  ! Total number of nodes in all the bodies together
+                TNELEM=TNELEM+NELEM                                                               ! Total number of elements in all the bodies together
+            ELSE
+                TNTND=TNTND+NTND_MULTI(FILE_M)+iNTND_MULTI(FILE_M)
+                TNELEM=TNELEM+NELEM_MULTI(FILE_M)+iNELEM_MULTI(FILE_M)
+                iNELEM_TOTAL=iNELEM_TOTAL+iNELEM_MULTI(FILE_M)                                                 ! Only water plane mesh panels (Later used for allocating the size of arrays)
+                NELEM_TOTAL=NELEM_TOTAL+NELEM_MULTI(FILE_M)                                                    ! Only hull mesh panels (Later used for allocating the size of arrays when irregular frequencies are removed)
+                iNTND_TOTAL=iNTND_TOTAL+iNTND_MULTI(FILE_M)                                                 ! Only water plane mesh panels (Later used for allocating the size of arrays)
+                NTND_TOTAL=NTND_TOTAL+NTND_MULTI(FILE_M)                                                    ! Only hull mesh panels (Later used for allocating the size of arrays when irregular frequencies are removed)
+                IF (iNELEM_MULTI(FILE_M).GT.0) THEN
+                    DO II=1,3
+                        READ(5,*)
+                    ENDDO
+                ENDIF
+            ENDIF
+        
+            IF (ISX.EQ.0.AND.ISY.EQ.0) THEN
+                ISYS=0
+                NSYS=1
+            ELSEIF (ISX.EQ.1.AND.ISY.EQ.1) THEN
+                print*, ' Warning: at present, ISX and ISY cannot be simultaneously 1.'
+                STOP
+            ELSE
+                ISYS=1
+                NSYS=2
+            ENDIF                                                                             
+        
+            CALL ReadBodyMeshMulti(FILE_M,NBODY,LCS_MULTI)
+        
+            IF (IRSP.NE.0) THEN                                                                ! Reading the waterplane mesh for multi-bodies
+                IF (iNELEM_MULTI(FILE_M).GT.0) THEN
+                    CALL ReadWTPLMeshMulti(FILE_M,NBODY,LCS_MULTI)            
+                ENDIF
+            ENDIF
+        
+            CLOSE(2)
+            CLOSE(5)
+        
+        ENDDO 
+       
+        ! Allocating variables
+        ALLOCATE(XG_MULTI(NBODY,3),XB_MULTI(NBODY,3),VOL_MULTI(NBODY),MASS_MULTI(NBODY))
+        ALLOCATE(IB_MULTI(NBODY,3,3),MATX_MULTI(NBODY,6,6),CRS_MULTI(NBODY,6,6),KSTF_MULTI(NBODY,6,6),RAO_MULTI(NBODY,6)) 
+       
+       
+        IF (IRSP.EQ.0) THEN
+            ALLOCATE(AMAT_MULTI(TNELEM,TNELEM,NSYS),BRMAT_MULTI(TNELEM,6*NBODY,NSYS),BDMAT_MULTI(TNELEM,NSYS),IPIV_MULTI_COMB(TNELEM,NSYS))
+            ALLOCATE(CGRN_MULTI_COMB(TNELEM,TNELEM,NSYS,4),RKBN_MULTI_COMB(TNELEM,TNELEM,NSYS,4)) ! These calculations are done for combination of all elements in all bodies together
+            ALLOCATE(MXPOT_MULTI_COMB(TNELEM,6*NBODY+1,NSYS),WVFQ(NPER),EXFC_MULTI(NBODY,NPER,NBETA,6),DSPL_MULTI(NBODY,NPER,NBETA,6),AMAS_MULTI(NPER,NBODY,6,6),BDMP_MULTI(NPER,NBODY,6,6),AMAS_MULTI_COMB(NPER,NBODY*6,NBODY*6),BDMP_MULTI_COMB(NPER,NBODY*6,NBODY*6))
+            ALLOCATE(BLNR_MULTI(NBODY,6,6),BQDR_MULTI(NBODY,6,6))
+            ALLOCATE(XYZ_GLOBAL_MULTI_COMB(TNTND,3),XYZ_GLOBAL_MULTI_COMB_P(TNELEM,3),PNSZ_MULTI_COMB(TNELEM),NCN_MULTI_COMB(TNELEM),NCON_MULTI_COMB(TNELEM,4))
+            ALLOCATE(DS_MULTI_COMB(TNELEM),DXYZ_MULTI_COMB(TNELEM,6))
+            ALLOCATE(NELEM_TOTAL_RAD(2*NBODY))
+        ELSE
+            ! There are changes to the size of the arrays based on the irregular frequency removal
+            ALLOCATE(AMAT_MULTI(TNELEM,TNELEM,NSYS),BRMAT_MULTI(TNELEM,6*NBODY,NSYS),BDMAT_MULTI(TNELEM,NSYS),IPIV_MULTI_COMB(NELEM_TOTAL,NSYS))
+            ALLOCATE(CGRN_MULTI_COMB(NELEM_TOTAL,NELEM_TOTAL,NSYS,4),RKBN_MULTI_COMB(NELEM_TOTAL,NELEM_TOTAL,NSYS,4)) ! These calculations are done for combination of all elements in all bodies together
+            ALLOCATE(MXPOT_MULTI_COMB(NELEM_TOTAL,6*NBODY+1,NSYS),WVFQ(NPER),EXFC_MULTI(NBODY,NPER,NBETA,6),DSPL_MULTI(NBODY,NPER,NBETA,6),AMAS_MULTI(NPER,NBODY,6,6),BDMP_MULTI(NPER,NBODY,6,6),AMAS_MULTI_COMB(NPER,NBODY*6,NBODY*6),BDMP_MULTI_COMB(NPER,NBODY*6,NBODY*6))
+            ALLOCATE(BLNR_MULTI(NBODY,6,6),BQDR_MULTI(NBODY,6,6))
+            ALLOCATE(XYZ_GLOBAL_MULTI_COMB(NTND_TOTAL,3),XYZ_GLOBAL_MULTI_COMB_P(NELEM_TOTAL,3),PNSZ_MULTI_COMB(NELEM_TOTAL),NCN_MULTI_COMB(NELEM_TOTAL),NCON_MULTI_COMB(NELEM_TOTAL,4))
+            ALLOCATE(DS_MULTI_COMB(NELEM_TOTAL),DXYZ_MULTI_COMB(NELEM_TOTAL,6))
+            ALLOCATE(NELEM_TOTAL_RAD(2*NBODY))
+            ! Allocating additional variables due to irregular frequency removal
+            ALLOCATE(iXYZ_GLOBAL_MULTI_COMB(iNTND_TOTAL,3),iXYZ_GLOBAL_MULTI_COMB_P(iNELEM_TOTAL,3),iPNSZ_MULTI_COMB(iNELEM_TOTAL),iNCN_MULTI_COMB(iNELEM_TOTAL),iNCON_MULTI_COMB(iNELEM_TOTAL,4))
+            ALLOCATE(iDS_MULTI_COMB(iNELEM_TOTAL),iDXYZ_MULTI_COMB(iNELEM_TOTAL,6))
+            ALLOCATE(DGRN_MULTI_COMB(iNELEM_TOTAL,NELEM_TOTAL,NSYS,4),PKBN_MULTI_COMB(iNELEM_TOTAL,NELEM_TOTAL,NSYS,4))
+            ALLOCATE(CMAT_MULTI(NELEM_TOTAL,NELEM_TOTAL,NSYS),DRMAT_MULTI(NELEM_TOTAL,6*NBODY,NSYS),DDMAT_MULTI(NELEM_TOTAL,NSYS))
+        ENDIF
+       
+        CALL InitialisationMulti
+       
+        DO FILE_M=1,NBODY 
+            IF (FILE_M.GT.9) THEN                                                           
+                WRITE(FILE_NUMBER,'(I2)') FILE_M
+            ELSEIF (FILE_M.GT.99) THEN
+                WRITE(FILE_NUMBER,'(I3)') FILE_M
+            ELSE
+                WRITE(FILE_NUMBER,'(I1)') FILE_M  
+            ENDIF 
+            HYDROSTATIC_MULTI=trim(inputdir)//'/Hydrostatic_'//FILE_NUMBER
+            HYDROSTATIC_MULTI=TRIM(HYDROSTATIC_MULTI)//'.in'
+            OPEN(4, FILE=HYDROSTATIC_MULTI, STATUS='UNKNOWN', action='READ')
+            CALL ReadHydroStaticMulti(FILE_M)
+            CLOSE(4)
+            CALL CalNormalsMulti(FILE_M,IRSP)                                                      ! This is implemented for no removal of irregular frequencies at this point
         ENDDO
-        
-        IF (IRSP.EQ.0) THEN                                                                ! IRSP (Irregular frequencies are only implemented for single bodies at the moment). Hence this is explicitly modified at this point. TNELEM and TNTND variable are used only when removal of irregular frequencies happens                                                           
-         TNTND=TNTND+NTND                                                                  ! Total number of nodes in all the bodies together
-         TNELEM=TNELEM+NELEM                                                               ! Total number of elements in all the bodies together
-        ELSE
-        TNTND=TNTND+NTND_MULTI(FILE_M)+iNTND_MULTI(FILE_M)
-        TNELEM=TNELEM+NELEM_MULTI(FILE_M)+iNELEM_MULTI(FILE_M)
-        iNELEM_TOTAL=iNELEM_TOTAL+iNELEM_MULTI(FILE_M)                                                 ! Only water plane mesh panels (Later used for allocating the size of arrays)
-        NELEM_TOTAL=NELEM_TOTAL+NELEM_MULTI(FILE_M)                                                    ! Only hull mesh panels (Later used for allocating the size of arrays when irregular frequencies are removed)
-        iNTND_TOTAL=iNTND_TOTAL+iNTND_MULTI(FILE_M)                                                 ! Only water plane mesh panels (Later used for allocating the size of arrays)
-        NTND_TOTAL=NTND_TOTAL+NTND_MULTI(FILE_M)                                                    ! Only hull mesh panels (Later used for allocating the size of arrays when irregular frequencies are removed)
-         IF (iNELEM_MULTI(FILE_M).GT.0) THEN
-          DO II=1,3
-           READ(5,*)
-          ENDDO
-         ENDIF
-        ENDIF
-        
-      IF (ISX.EQ.0.AND.ISY.EQ.0) THEN
-        ISYS=0
-        NSYS=1
-      ELSEIF (ISX.EQ.1.AND.ISY.EQ.1) THEN
-        print*, ' Warning: at present, ISX and ISY cannot be simultaneously 1.'
-        STOP
-      ELSE
-        ISYS=1
-        NSYS=2
-      ENDIF                                                                             
-        
-        CALL ReadBodyMeshMulti(FILE_M,NBODY,LCS_MULTI)
-        
-        IF (IRSP.NE.0) THEN                                                                ! Reading the waterplane mesh for multi-bodies
-         IF (iNELEM_MULTI(FILE_M).GT.0) THEN
-          CALL ReadWTPLMeshMulti(FILE_M,NBODY,LCS_MULTI)            
-         ENDIF
-        ENDIF
-        
-        CLOSE(2)
-        CLOSE(5)
-        
-       ENDDO 
        
-      ! Allocating variables
-       ALLOCATE(XG_MULTI(NBODY,3),XB_MULTI(NBODY,3),VOL_MULTI(NBODY),MASS_MULTI(NBODY))
-       ALLOCATE(IB_MULTI(NBODY,3,3),MATX_MULTI(NBODY,6,6),CRS_MULTI(NBODY,6,6),KSTF_MULTI(NBODY,6,6),RAO_MULTI(NBODY,6)) 
-       
-       
-       IF (IRSP.EQ.0) THEN
-        ALLOCATE(AMAT_MULTI(TNELEM,TNELEM,NSYS),BRMAT_MULTI(TNELEM,6*NBODY,NSYS),BDMAT_MULTI(TNELEM,NSYS),IPIV_MULTI_COMB(TNELEM,NSYS))
-        ALLOCATE(CGRN_MULTI_COMB(TNELEM,TNELEM,NSYS,4),RKBN_MULTI_COMB(TNELEM,TNELEM,NSYS,4)) ! These calculations are done for combination of all elements in all bodies together
-        ALLOCATE(MXPOT_MULTI_COMB(TNELEM,6*NBODY+1,NSYS),WVFQ(NPER),EXFC_MULTI(NBODY,NPER,NBETA,6),DSPL_MULTI(NBODY,NPER,NBETA,6),AMAS_MULTI(NPER,NBODY,6,6),BDMP_MULTI(NPER,NBODY,6,6),AMAS_MULTI_COMB(NPER,NBODY*6,NBODY*6),BDMP_MULTI_COMB(NPER,NBODY*6,NBODY*6))
-        ALLOCATE(BLNR_MULTI(NBODY,6,6),BQDR_MULTI(NBODY,6,6))
-        ALLOCATE(XYZ_GLOBAL_MULTI_COMB(TNTND,3),XYZ_GLOBAL_MULTI_COMB_P(TNELEM,3),PNSZ_MULTI_COMB(TNELEM),NCN_MULTI_COMB(TNELEM),NCON_MULTI_COMB(TNELEM,4))
-        ALLOCATE(DS_MULTI_COMB(TNELEM),DXYZ_MULTI_COMB(TNELEM,6))
-        ALLOCATE(NELEM_TOTAL_RAD(2*NBODY))
-       ELSE
-       ! There are changes to the size of the arrays based on the irregular frequency removal
-        ALLOCATE(AMAT_MULTI(TNELEM,TNELEM,NSYS),BRMAT_MULTI(TNELEM,6*NBODY,NSYS),BDMAT_MULTI(TNELEM,NSYS),IPIV_MULTI_COMB(NELEM_TOTAL,NSYS))
-        ALLOCATE(CGRN_MULTI_COMB(NELEM_TOTAL,NELEM_TOTAL,NSYS,4),RKBN_MULTI_COMB(NELEM_TOTAL,NELEM_TOTAL,NSYS,4)) ! These calculations are done for combination of all elements in all bodies together
-        ALLOCATE(MXPOT_MULTI_COMB(NELEM_TOTAL,6*NBODY+1,NSYS),WVFQ(NPER),EXFC_MULTI(NBODY,NPER,NBETA,6),DSPL_MULTI(NBODY,NPER,NBETA,6),AMAS_MULTI(NPER,NBODY,6,6),BDMP_MULTI(NPER,NBODY,6,6),AMAS_MULTI_COMB(NPER,NBODY*6,NBODY*6),BDMP_MULTI_COMB(NPER,NBODY*6,NBODY*6))
-        ALLOCATE(BLNR_MULTI(NBODY,6,6),BQDR_MULTI(NBODY,6,6))
-        ALLOCATE(XYZ_GLOBAL_MULTI_COMB(NTND_TOTAL,3),XYZ_GLOBAL_MULTI_COMB_P(NELEM_TOTAL,3),PNSZ_MULTI_COMB(NELEM_TOTAL),NCN_MULTI_COMB(NELEM_TOTAL),NCON_MULTI_COMB(NELEM_TOTAL,4))
-        ALLOCATE(DS_MULTI_COMB(NELEM_TOTAL),DXYZ_MULTI_COMB(NELEM_TOTAL,6))
-        ALLOCATE(NELEM_TOTAL_RAD(2*NBODY))
-       ! Allocating additional variables due to irregular frequency removal
-        ALLOCATE(iXYZ_GLOBAL_MULTI_COMB(iNTND_TOTAL,3),iXYZ_GLOBAL_MULTI_COMB_P(iNELEM_TOTAL,3),iPNSZ_MULTI_COMB(iNELEM_TOTAL),iNCN_MULTI_COMB(iNELEM_TOTAL),iNCON_MULTI_COMB(iNELEM_TOTAL,4))
-        ALLOCATE(iDS_MULTI_COMB(iNELEM_TOTAL),iDXYZ_MULTI_COMB(iNELEM_TOTAL,6))
-        ALLOCATE(DGRN_MULTI_COMB(iNELEM_TOTAL,NELEM_TOTAL,NSYS,4),PKBN_MULTI_COMB(iNELEM_TOTAL,NELEM_TOTAL,NSYS,4))
-        ALLOCATE(CMAT_MULTI(NELEM_TOTAL,NELEM_TOTAL,NSYS),DRMAT_MULTI(NELEM_TOTAL,6*NBODY,NSYS),DDMAT_MULTI(NELEM_TOTAL,NSYS))
-       ENDIF
-       
-       CALL InitialisationMulti
-       
-       DO FILE_M=1,NBODY 
-        IF (FILE_M.GT.9) THEN                                                           
-         WRITE(FILE_NUMBER,'(I2)') FILE_M
-        ELSEIF (FILE_M.GT.99) THEN
-         WRITE(FILE_NUMBER,'(I3)') FILE_M
-        ELSE
-         WRITE(FILE_NUMBER,'(I1)') FILE_M  
-        ENDIF 
-        HYDROSTATIC_MULTI=trim(inputdir)//'/Hydrostatic_'//FILE_NUMBER
-        HYDROSTATIC_MULTI=TRIM(HYDROSTATIC_MULTI)//'.in'
-        OPEN(4, FILE=HYDROSTATIC_MULTI, STATUS='UNKNOWN', action='READ')
-        CALL ReadHydroStaticMulti(FILE_M)
-        CLOSE(4)
-        CALL CalNormalsMulti(FILE_M,IRSP)                                                      ! This is implemented for no removal of irregular frequencies at this point
-       ENDDO
-       PRINT *,' Calculating panel normals is finished for all multi-bodies.'
-       PRINT *
+        PRINT *,' Calculating panel normals is finished for all multi-bodies.'
+        PRINT *
 
         DO MD1=1,5
-           CLOSE(MD1)
+            CLOSE(MD1)
         ENDDO
       
-       WRITE(*,'(A35,I10)') 'Number of geometrical symmetries:',ISYS
-       DO FILE_M = 1,NBODY
-        WRITE(*,'(A38,I2,A1,I10)') 'Number of panels on the hull of body',FILE_M,':',NELEM_MULTI(FILE_M)
-       ENDDO
-       IF (IRSP.EQ.1) THEN 
+        WRITE(*,'(A35,I10)') 'Number of geometrical symmetries:',ISYS
         DO FILE_M = 1,NBODY
-         WRITE(*,'(A45,I2,A1,I10)') 'Number of panels on the water plane of body',FILE_M,':',iNELEM_MULTI(FILE_M)
+            WRITE(*,'(A38,I2,A1,I10)') 'Number of panels on the hull of body',FILE_M,':',NELEM_MULTI(FILE_M)
         ENDDO
-       ENDIF
-       PRINT*
-       WRITE(*,*) ' Radiation-diffraction computation starts...'
+        IF (IRSP.EQ.1) THEN 
+            DO FILE_M = 1,NBODY
+                WRITE(*,'(A45,I2,A1,I10)') 'Number of panels on the water plane of body',FILE_M,':',iNELEM_MULTI(FILE_M)
+            ENDDO
+        ENDIF
+        PRINT*
+        WRITE(*,*) ' Radiation-diffraction computation starts...'
        
-      ! Currently no printing of results in Hydrostar Formal
-       !! This would have to be extended for the total degrees of freedom, which will be NBODY*6
-       !DO MD=1,6
-       !  CALL PrintHeading(190+MD,NBETA,REFL,'Excitation',MD,MD,H,XW,XR,WVHD)
-       !  CALL PrintHeading(200+MD,NBETA,REFL,'Motion',MD,MD,H,XW,XR,WVHD)
-       !ENDDO
-       !
-       ! DO MD1=1,6
-       ! DO MD2=1,6
-       !  CALL PrintHeading(70+10*(MD1-1)+MD2,NBETA,REFL,'AddedMass',MD1,MD2,H,XW,XR,WVHD)
-       !  CALL PrintHeading(130+10*(MD1-1)+MD2,NBETA,REFL,'WaveDamping',MD1,MD2,H,XW,XR,WVHD)
-       ! ENDDO
-       ! ENDDO
+        !Currently no printing of results in Hydrostar Formal
+        !This would have to be extended for the total degrees of freedom, which will be NBODY*6
+        !DO MD=1,6
+        !   CALL PrintHeading(190+MD,NBETA,REFL,'Excitation',MD,MD,H,XW,XR,WVHD)
+        !   CALL PrintHeading(200+MD,NBETA,REFL,'Motion',MD,MD,H,XW,XR,WVHD)
+        !ENDDO
+        !
+        !DO MD1=1,6
+        !   DO MD2=1,6
+        !       CALL PrintHeading(70+10*(MD1-1)+MD2,NBETA,REFL,'AddedMass',MD1,MD2,H,XW,XR,WVHD)
+        !       CALL PrintHeading(130+10*(MD1-1)+MD2,NBETA,REFL,'WaveDamping',MD1,MD2,H,XW,XR,WVHD)
+        !   ENDDO
+        !ENDDO
        
-       DO KK=1,NPER
+        DO KK=1,NPER
  
-         CALL CalWaveProperts(KK)                        ! Calculation of the incident wave properties. This will remain the same for both single and multi-bodies with and without irregular frequency removal.
+            CALL CalWaveProperts(KK)                        ! Calculation of the incident wave properties. This will remain the same for both single and multi-bodies with and without irregular frequency removal.
 
-         IF (INFT.EQ.1.or.INFT.EQ.2) THEN
-          WRITE(6,1010) INFR
-         ELSEIF (INFT.EQ.3) THEN
-          WRITE(6,1030) INFR
-         ELSEIF (INFT.EQ.4) THEN
-          WRITE(6,1040) INFR
-         ELSEIF (INFT.EQ.5) THEN
-          WRITE(6,1050) INFR
-         ENDIF
-         
-         ! Solving the radiation problem
-         IF (IRSP.EQ.0) THEN
-            CALL CALGREEN_MULTI
-            CALL ASSB_LEFT_MULTI(AMAT_MULTI,IPIV_MULTI_COMB,TNELEM,NSYS)                 ! Should AMAT_MULTI be symmetric?
-            NELEM_GLOBAL=0
-            BRMAT_MULTI=CMPLX(0.0D0,0.0D0)
-            DO FILE_M=1,NBODY
-             IF (FILE_M.EQ.1) THEN
-              CALL ASSB_RBC_MULTI(BRMAT_MULTI(:,6*(FILE_M-1)+1:6*(FILE_M-1)+6,:),TNELEM,NSYS,1,NELEM_MULTI(FILE_M))
-             ELSEIF (FILE_M.EQ.NBODY) THEN
-              CALL ASSB_RBC_MULTI(BRMAT_MULTI(:,6*(FILE_M-1)+1:6*(FILE_M-1)+6,:),TNELEM,NSYS,NELEM_GLOBAL+1,TNELEM)
-             ELSE
-              CALL ASSB_RBC_MULTI(BRMAT_MULTI(:,6*(FILE_M-1)+1:6*(FILE_M-1)+6,:),TNELEM,NSYS,NELEM_GLOBAL+1,NELEM_GLOBAL+NELEM_MULTI(FILE_M))
-             ENDIF
-             NELEM_GLOBAL=NELEM_GLOBAL+NELEM_MULTI(FILE_M)
-            ENDDO
-            CALL RADIATION_SOLVER_MULTI(AMAT_MULTI,BRMAT_MULTI,IPIV_MULTI_COMB,MXPOT_MULTI_COMB,TNELEM,NSYS)
-         ELSEIF (IRSP.EQ.1) THEN                                         
-           CALL CALGREEN_MULTI_IRR
-           CALL ASSB_LEFT_IRR_MULTI(AMAT_MULTI,CMAT_MULTI,IPIV_MULTI_COMB,NELEM_TOTAL,iNELEM_TOTAL,TNELEM,NSYS)
-           NELEM_GLOBAL=0
-           BRMAT_MULTI=CMPLX(0.0D0,0.0D0)
-           DRMAT_MULTI=CMPLX(0.0D0,0.0D0)
-           DO FILE_M=1,NBODY
-            IF (FILE_M.EQ.1) THEN
-              CALL ASSB_RBC_IRR_MULTI(BRMAT_MULTI(:,6*(FILE_M-1)+1:6*(FILE_M-1)+6,:),DRMAT_MULTI(:,6*(FILE_M-1)+1:6*(FILE_M-1)+6,:),AMAT_MULTI,NELEM_TOTAL,iNELEM_TOTAL,TNELEM,NSYS,1,NELEM_MULTI(FILE_M))
-            ELSEIF (FILE_M.EQ.NBODY) THEN
-              CALL ASSB_RBC_IRR_MULTI(BRMAT_MULTI(:,6*(FILE_M-1)+1:6*(FILE_M-1)+6,:),DRMAT_MULTI(:,6*(FILE_M-1)+1:6*(FILE_M-1)+6,:),AMAT_MULTI,NELEM_TOTAL,iNELEM_TOTAL,TNELEM,NSYS,NELEM_GLOBAL+1,NELEM_TOTAL)
-            ELSE
-              CALL ASSB_RBC_IRR_MULTI(BRMAT_MULTI(:,6*(FILE_M-1)+1:6*(FILE_M-1)+6,:),DRMAT_MULTI(:,6*(FILE_M-1)+1:6*(FILE_M-1)+6,:),AMAT_MULTI,NELEM_TOTAL,iNELEM_TOTAL,TNELEM,NSYS,NELEM_GLOBAL+1,NELEM_GLOBAL+NELEM_MULTI(FILE_M))
+            IF (INFT.EQ.1.or.INFT.EQ.2) THEN
+                WRITE(6,1010) INFR
+            ELSEIF (INFT.EQ.3) THEN
+                WRITE(6,1030) INFR
+            ELSEIF (INFT.EQ.4) THEN
+                WRITE(6,1040) INFR
+            ELSEIF (INFT.EQ.5) THEN
+                WRITE(6,1050) INFR
             ENDIF
-            NELEM_GLOBAL=NELEM_GLOBAL+NELEM_MULTI(FILE_M)
-           ENDDO
-            CALL RADIATION_SOLVER_MULTI(CMAT_MULTI,DRMAT_MULTI,IPIV_MULTI_COMB,MXPOT_MULTI_COMB,NELEM_TOTAL,NSYS)
-         ENDIF
          
-         ! Filling the total element number matrix to be used for deriving the radiation forces
-         NELEM_GLOBAL=0
-         DO FILE_M=1,NBODY
-          IF (FILE_M.EQ.1) THEN
-           NELEM_TOTAL_RAD(2*FILE_M-1)=1
-           NELEM_TOTAL_RAD(2*FILE_M)=NELEM_MULTI(FILE_M)
-          ELSEIF (FILE_M.EQ.NBODY) THEN
-           NELEM_TOTAL_RAD(2*FILE_M-1)=NELEM_GLOBAL+1
-           IF (IRSP.EQ.0) THEN
-            NELEM_TOTAL_RAD(2*FILE_M)=TNELEM
-           ELSE
-            NELEM_TOTAL_RAD(2*FILE_M)=NELEM_TOTAL
-           ENDIF
-          ELSE 
-           NELEM_TOTAL_RAD(2*FILE_M-1)=NELEM_GLOBAL+1
-           NELEM_TOTAL_RAD(2*FILE_M)=NELEM_GLOBAL+NELEM_MULTI(FILE_M)   
-          ENDIF
-          NELEM_GLOBAL=NELEM_GLOBAL+NELEM_MULTI(FILE_M)
-         ENDDO
-         
-          AMAS_MULTI_COMB(KK,:,:)=0.D0
-          BDMP_MULTI_COMB(KK,:,:)=0.D0
-          DO FILE_M=1,NBODY
-            DO FILE_N=1,NBODY
-             CALL RFORCE_MULTI(WK,W1,TP,AMAS_MULTI_COMB(KK,6*(FILE_M-1)+1:6*(FILE_M-1)+6,6*(FILE_N-1)+1:6*(FILE_N-1)+6),BDMP_MULTI_COMB(KK,6*(FILE_M-1)+1:6*(FILE_M-1)+6,6*(FILE_N-1)+1:6*(FILE_N-1)+6),NELEM_TOTAL_RAD(2*FILE_M-1),NELEM_TOTAL_RAD(2*FILE_M),FILE_N) 
-            ENDDO
-          ENDDO
-          CALL OutputPressureElevation_RadiationMulti(210,NBODY)
-        
-        ! Solving the diffraction problem 
-        DO II=1,NBETA
-
-         BETA=WVHD(II)*PI/180.0D0
-         WRITE(6,3000) WVHD(II)
-         
-         IF (IRSP.EQ.0) THEN
-           CALL ASSB_DBC_MULTI(BDMAT_MULTI,TNELEM,NSYS)
-           CALL DIFFRACTION_SOLVER_MULTI(AMAT_MULTI,BDMAT_MULTI,IPIV_MULTI_COMB,MXPOT_MULTI_COMB,TNELEM,NSYS)
-         ELSEIF (IRSP.EQ.1) THEN
-           CALL ASSB_DBC_IRR_MULTI(BDMAT_MULTI,DDMAT_MULTI,AMAT_MULTI,NELEM_TOTAL,iNELEM_TOTAL,TNELEM,NSYS)
-           CALL DIFFRACTION_SOLVER_IRR_MULTI(CMAT_MULTI,DDMAT_MULTI,IPIV_MULTI_COMB,MXPOT_MULTI_COMB,NELEM_TOTAL,NSYS)
-         ENDIF
-         
-          NELEM_GLOBAL=0
-          DO FILE_M=1,NBODY
-           IF (FILE_M.EQ.1) THEN
-            CALL EFORCE_MULTI(WK,W1,TP,BETA,AMP,EXFC_MULTI(FILE_M,KK,II,:),1,NELEM_MULTI(FILE_M),NBODY) 
-           ELSEIF (FILE_M.EQ.NBODY) THEN
+            ! Solving the radiation problem
             IF (IRSP.EQ.0) THEN
-             CALL EFORCE_MULTI(WK,W1,TP,BETA,AMP,EXFC_MULTI(FILE_M,KK,II,:),NELEM_GLOBAL+1,TNELEM,NBODY)
-            ELSE
-             CALL EFORCE_MULTI(WK,W1,TP,BETA,AMP,EXFC_MULTI(FILE_M,KK,II,:),NELEM_GLOBAL+1,NELEM_TOTAL,NBODY)
+                CALL CALGREEN_MULTI
+                CALL ASSB_LEFT_MULTI(AMAT_MULTI,IPIV_MULTI_COMB,TNELEM,NSYS)                 ! Should AMAT_MULTI be symmetric?
+                NELEM_GLOBAL=0
+                BRMAT_MULTI=CMPLX(0.0D0,0.0D0)
+                DO FILE_M=1,NBODY
+                    IF (FILE_M.EQ.1) THEN
+                        CALL ASSB_RBC_MULTI(BRMAT_MULTI(:,6*(FILE_M-1)+1:6*(FILE_M-1)+6,:),TNELEM,NSYS,1,NELEM_MULTI(FILE_M))
+                    ELSEIF (FILE_M.EQ.NBODY) THEN
+                        CALL ASSB_RBC_MULTI(BRMAT_MULTI(:,6*(FILE_M-1)+1:6*(FILE_M-1)+6,:),TNELEM,NSYS,NELEM_GLOBAL+1,TNELEM)
+                    ELSE
+                        CALL ASSB_RBC_MULTI(BRMAT_MULTI(:,6*(FILE_M-1)+1:6*(FILE_M-1)+6,:),TNELEM,NSYS,NELEM_GLOBAL+1,NELEM_GLOBAL+NELEM_MULTI(FILE_M))
+                    ENDIF
+                    NELEM_GLOBAL=NELEM_GLOBAL+NELEM_MULTI(FILE_M)
+                ENDDO
+                CALL RADIATION_SOLVER_MULTI(AMAT_MULTI,BRMAT_MULTI,IPIV_MULTI_COMB,MXPOT_MULTI_COMB,TNELEM,NSYS)
+            ELSEIF (IRSP.EQ.1) THEN                                         
+                CALL CALGREEN_MULTI_IRR
+                CALL ASSB_LEFT_IRR_MULTI(AMAT_MULTI,CMAT_MULTI,IPIV_MULTI_COMB,NELEM_TOTAL,iNELEM_TOTAL,TNELEM,NSYS)
+                NELEM_GLOBAL=0
+                BRMAT_MULTI=CMPLX(0.0D0,0.0D0)
+                DRMAT_MULTI=CMPLX(0.0D0,0.0D0)
+                DO FILE_M=1,NBODY
+                    IF (FILE_M.EQ.1) THEN
+                        CALL ASSB_RBC_IRR_MULTI(BRMAT_MULTI(:,6*(FILE_M-1)+1:6*(FILE_M-1)+6,:),DRMAT_MULTI(:,6*(FILE_M-1)+1:6*(FILE_M-1)+6,:),AMAT_MULTI,NELEM_TOTAL,iNELEM_TOTAL,TNELEM,NSYS,1,NELEM_MULTI(FILE_M))
+                    ELSEIF (FILE_M.EQ.NBODY) THEN
+                        CALL ASSB_RBC_IRR_MULTI(BRMAT_MULTI(:,6*(FILE_M-1)+1:6*(FILE_M-1)+6,:),DRMAT_MULTI(:,6*(FILE_M-1)+1:6*(FILE_M-1)+6,:),AMAT_MULTI,NELEM_TOTAL,iNELEM_TOTAL,TNELEM,NSYS,NELEM_GLOBAL+1,NELEM_TOTAL)
+                    ELSE
+                        CALL ASSB_RBC_IRR_MULTI(BRMAT_MULTI(:,6*(FILE_M-1)+1:6*(FILE_M-1)+6,:),DRMAT_MULTI(:,6*(FILE_M-1)+1:6*(FILE_M-1)+6,:),AMAT_MULTI,NELEM_TOTAL,iNELEM_TOTAL,TNELEM,NSYS,NELEM_GLOBAL+1,NELEM_GLOBAL+NELEM_MULTI(FILE_M))
+                    ENDIF
+                    NELEM_GLOBAL=NELEM_GLOBAL+NELEM_MULTI(FILE_M)
+                ENDDO
+                CALL RADIATION_SOLVER_MULTI(CMAT_MULTI,DRMAT_MULTI,IPIV_MULTI_COMB,MXPOT_MULTI_COMB,NELEM_TOTAL,NSYS)
             ENDIF
-           ELSE
-            CALL EFORCE_MULTI(WK,W1,TP,BETA,AMP,EXFC_MULTI(FILE_M,KK,II,:),NELEM_GLOBAL+1,NELEM_GLOBAL+NELEM_MULTI(FILE_M),NBODY)
-           ENDIF
-           NELEM_GLOBAL=NELEM_GLOBAL+NELEM_MULTI(FILE_M)
-          ENDDO
-          CALL OutputPressureElevation_DiffractionMulti(64,NBODY) ! File 64 is the diffraction file created as part of the process when reading the input files.
-          CALL OutputPressureElevation_IncidenceMulti(66,NBODY)
          
-        ENDDO
+         
+            ! Filling the total element number matrix to be used for deriving the radiation forces
+            NELEM_GLOBAL=0
+            DO FILE_M=1,NBODY
+                IF (FILE_M.EQ.1) THEN
+                    NELEM_TOTAL_RAD(2*FILE_M-1)=1
+                    NELEM_TOTAL_RAD(2*FILE_M)=NELEM_MULTI(FILE_M)
+                ELSEIF (FILE_M.EQ.NBODY) THEN
+                    NELEM_TOTAL_RAD(2*FILE_M-1)=NELEM_GLOBAL+1
+                    IF (IRSP.EQ.0) THEN
+                        NELEM_TOTAL_RAD(2*FILE_M)=TNELEM
+                    ELSE
+                        NELEM_TOTAL_RAD(2*FILE_M)=NELEM_TOTAL
+                    ENDIF
+                ELSE 
+                    NELEM_TOTAL_RAD(2*FILE_M-1)=NELEM_GLOBAL+1
+                    NELEM_TOTAL_RAD(2*FILE_M)=NELEM_GLOBAL+NELEM_MULTI(FILE_M)   
+                ENDIF
+                NELEM_GLOBAL=NELEM_GLOBAL+NELEM_MULTI(FILE_M)
+            ENDDO
+         
+            AMAS_MULTI_COMB(KK,:,:)=0.D0
+            BDMP_MULTI_COMB(KK,:,:)=0.D0
+            DO FILE_M=1,NBODY
+                DO FILE_N=1,NBODY
+                    CALL RFORCE_MULTI(WK,W1,TP,AMAS_MULTI_COMB(KK,6*(FILE_M-1)+1:6*(FILE_M-1)+6,6*(FILE_N-1)+1:6*(FILE_N-1)+6),BDMP_MULTI_COMB(KK,6*(FILE_M-1)+1:6*(FILE_M-1)+6,6*(FILE_N-1)+1:6*(FILE_N-1)+6),NELEM_TOTAL_RAD(2*FILE_M-1),NELEM_TOTAL_RAD(2*FILE_M),FILE_N) 
+                ENDDO
+            ENDDO
+            CALL OutputPressureElevation_RadiationMulti(210,NBODY)
         
-       ENDDO
-       
-       ! TODO De allocate the arrays after utilization
-       
-       !DO KK=1,NPER
-       !
-       ! DO MD1=1,6
-       ! DO MD2=1,6
-       !  CALL PrintBody_RealVal(70+10*(MD1-1)+MD2,WVFQ(KK),NBETA,'AddedMass',AMAS(KK,MD1,MD2))
-       !  CALL PrintBody_RealVal(130+10*(MD1-1)+MD2,WVFQ(KK),NBETA,'WaveDamping',BDMP(KK,MD1,MD2))
-       ! ENDDO
-       ! ENDDO
-       ! 
-       !  DO MD=1,6
-       !   CALL PrintBody_CmplxVal( 190+MD,WVFQ(KK),NBETA,'Excitation',EXFC(KK,:,MD))
-       !   CALL PrintBody_CmplxVal(200+MD,WVFQ(KK),NBETA,'Motion',DSPL(KK,:,MD))
-       !  ENDDO
-       !
-       !ENDDO
-! ================================================================
+            ! Solving the diffraction problem 
+            DO II=1,NBETA
 
-       ! DO MD=1,6
-       !  CALL PrintEnd(190+MD)
-       !  CALL PrintEnd(200+MD)
-       ! ENDDO
-       ! 
-       ! DO MD1=1,6
-       ! DO MD2=1,6
-       !  CALL PrintEnd(70+10*(MD1-1)+MD2)
-       !  CALL PrintEnd(130+10*(MD1-1)+MD2)
-       ! ENDDO
-       ! ENDDO
-       ! 
-       !DEALLOCATE(XYZ,DS,NCN,NCON,XYZ_P,DXYZ_P)
-       !DEALLOCATE(AMAT,BRMAT,BDMAT,CGRN,RKBN,IPIV)
-       !DEALLOCATE(MXPOT,EXFC,DSPL,AMAS,BDMP)
-       !DEALLOCATE(WVFQ,WVHD,WVNB,XFP,PNSZ)
-       !
-       !IF (IRSP.EQ.1) THEN
-       ! DEALLOCATE(iXYZ,IDS,INCN,INCON,iXYZ_P,IDXYZ_P)
-       ! DEALLOCATE(CMAT,DRMAT,DDMAT,DGRN,PKBN,iPNSZ)
-       !ENDIF
+                BETA=WVHD(II)*PI/180.0D0
+                WRITE(6,3000) WVHD(II)
+         
+                IF (IRSP.EQ.0) THEN
+                    CALL ASSB_DBC_MULTI(BDMAT_MULTI,TNELEM,NSYS)
+                    CALL DIFFRACTION_SOLVER_MULTI(AMAT_MULTI,BDMAT_MULTI,IPIV_MULTI_COMB,MXPOT_MULTI_COMB,TNELEM,NSYS)
+                ELSEIF (IRSP.EQ.1) THEN
+                    CALL ASSB_DBC_IRR_MULTI(BDMAT_MULTI,DDMAT_MULTI,AMAT_MULTI,NELEM_TOTAL,iNELEM_TOTAL,TNELEM,NSYS)
+                    CALL DIFFRACTION_SOLVER_IRR_MULTI(CMAT_MULTI,DDMAT_MULTI,IPIV_MULTI_COMB,MXPOT_MULTI_COMB,NELEM_TOTAL,NSYS)
+                ENDIF
+         
+                NELEM_GLOBAL=0
+                DO FILE_M=1,NBODY
+                    IF (FILE_M.EQ.1) THEN
+                        CALL EFORCE_MULTI(WK,W1,TP,BETA,AMP,EXFC_MULTI(FILE_M,KK,II,:),1,NELEM_MULTI(FILE_M),NBODY) 
+                    ELSEIF (FILE_M.EQ.NBODY) THEN
+                        IF (IRSP.EQ.0) THEN
+                            CALL EFORCE_MULTI(WK,W1,TP,BETA,AMP,EXFC_MULTI(FILE_M,KK,II,:),NELEM_GLOBAL+1,TNELEM,NBODY)
+                        ELSE
+                            CALL EFORCE_MULTI(WK,W1,TP,BETA,AMP,EXFC_MULTI(FILE_M,KK,II,:),NELEM_GLOBAL+1,NELEM_TOTAL,NBODY)
+                        ENDIF
+                    ELSE
+                        CALL EFORCE_MULTI(WK,W1,TP,BETA,AMP,EXFC_MULTI(FILE_M,KK,II,:),NELEM_GLOBAL+1,NELEM_GLOBAL+NELEM_MULTI(FILE_M),NBODY)
+                    ENDIF
+                    NELEM_GLOBAL=NELEM_GLOBAL+NELEM_MULTI(FILE_M)
+                ENDDO
+                CALL OutputPressureElevation_DiffractionMulti(64,NBODY) ! File 64 is the diffraction file created as part of the process when reading the input files.
+                CALL OutputPressureElevation_IncidenceMulti(66,NBODY)
+         
+            ENDDO
+        
+        ENDDO
        
-       write(*,*) 
-       write(*,*) ' Congratulations! Your computation completes successfully.'
-       write(*,*)
+        !TODO De allocate the arrays after utilization
+        
+        !DO KK=1,NPER
+        !   DO MD1=1,6
+        !       DO MD2=1,6
+        !           CALL PrintBody_RealVal(70+10*(MD1-1)+MD2,WVFQ(KK),NBETA,'AddedMass',AMAS(KK,MD1,MD2))
+        !           CALL PrintBody_RealVal(130+10*(MD1-1)+MD2,WVFQ(KK),NBETA,'WaveDamping',BDMP(KK,MD1,MD2))
+        !       ENDDO
+        !   ENDDO
+        ! 
+        !   DO MD=1,6
+        !       CALL PrintBody_CmplxVal( 190+MD,WVFQ(KK),NBETA,'Excitation',EXFC(KK,:,MD))
+        !       CALL PrintBody_CmplxVal(200+MD,WVFQ(KK),NBETA,'Motion',DSPL(KK,:,MD))
+        !   ENDDO
+        !
+        !ENDDO
+        ! ================================================================
+
+        !DO MD=1,6
+        !   CALL PrintEnd(190+MD)
+        !   CALL PrintEnd(200+MD)
+        !ENDDO
+        ! 
+        !DO MD1=1,6
+        !   DO MD2=1,6
+        !       CALL PrintEnd(70+10*(MD1-1)+MD2)
+        !       CALL PrintEnd(130+10*(MD1-1)+MD2)
+        !   ENDDO
+        !ENDDO
+        ! 
+        !DEALLOCATE(XYZ,DS,NCN,NCON,XYZ_P,DXYZ_P)
+        !DEALLOCATE(AMAT,BRMAT,BDMAT,CGRN,RKBN,IPIV)
+        !DEALLOCATE(MXPOT,EXFC,DSPL,AMAS,BDMP)
+        !DEALLOCATE(WVFQ,WVHD,WVNB,XFP,PNSZ)
+        !
+        !IF (IRSP.EQ.1) THEN
+        !   DEALLOCATE(iXYZ,IDS,INCN,INCON,iXYZ_P,IDXYZ_P)
+        !   DEALLOCATE(CMAT,DRMAT,DDMAT,DGRN,PKBN,iPNSZ)
+        !ENDIF
        
-       ENDIF
+        write(*,*) 
+        write(*,*) ' Congratulations! Your computation completes successfully.'
+        write(*,*)
+    end if
 
-
-END PROGRAM HAMS_MREL
+end program HAMS_MREL
       
