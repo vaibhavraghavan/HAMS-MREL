@@ -169,16 +169,6 @@ module IO
         read(1,'(26x,i16)')        ISOL
         read(1,'(23x,i16)')        IRSP
         read(1,'(23x,i16)')        NTHREAD
-        
-        if (IRSP .ne. 0) then ! Checks if the waterplane mesh is there for a single body. For multi-bodies, this is added to the HAMS_Prog
-            if (NBODY == 1) then
-                open(5, file=dir//'/WaterPlaneMesh.pnl', status='OLD', iostat=err)
-                if (err .ne. 0) then
-                    print*, 'Error: The waterplane mesh file does not exist.', new_line('a')
-                    stop
-                endif
-            end if
-        end if
 
         read(1,*) 
         read(1,*) 
@@ -193,28 +183,33 @@ module IO
 
     end subroutine ReadControlFile
 
-    subroutine VerifyInputFilesExist(dir, numbodies, success)
+    subroutine VerifyInputFilesExist(dir, numbodies, irrfreq, success)
         implicit none
         character(len=*), intent(in) :: dir
-        integer, intent(in) :: numbodies
+        integer, intent(in) :: numbodies, irrfreq
         logical, intent(out) :: success
         logical :: hullexists, hydroexists, wpmexists
         integer :: i
         character(len=1) :: istr
 
         success = .true.
-        
+        wpmexists = .true.
+
         if (numbodies == 1) then
             istr = '1'
             inquire(file=dir//"/HullMesh.pnl", exist=hullexists)
             inquire(file=dir//"/Hydrostatic.in", exist=hydroexists)
-            inquire(file=dir//"/WaterPlaneMesh.pnl", exist=wpmexists)
+            if (irrfreq .ne. 0) then
+                inquire(file=dir//"/WaterPlaneMesh.pnl", exist=wpmexists)
+            end if
         else if (numbodies > 1) then
             do i = 1, numbodies
                 write(istr, '(I1)') i   ! Convert i to str
                 inquire(file=dir//"/HullMesh_"//istr//".pnl", exist=hullexists)
                 inquire(file=dir//"/Hydrostatic_"//istr//".in", exist=hydroexists)
-                inquire(file=dir//"/WaterPlaneMesh_"//istr//".pnl", exist=wpmexists)
+                if (irrfreq .ne. 0) then
+                    inquire(file=dir//"/WaterPlaneMesh_"//istr//".pnl", exist=wpmexists)
+                end if
                 if ((.not. hullexists) .or. (.not. hydroexists) .or. (.not. wpmexists)) then
                     exit
                 end if
@@ -235,17 +230,6 @@ module IO
         end if
 
     end subroutine VerifyInputFilesExist
-
-    subroutine CreateFile(filepath, success)
-        implicit none
-        character(len=*), intent(in) :: filepath
-        logical, intent(out) :: success
-
-        OPEN(856, FILE=filepath, STATUS='UNKNOWN')
-
-        success = .true.
-
-    end subroutine CreateFile
 
     subroutine CreateDirectory(dir, success)
         implicit none

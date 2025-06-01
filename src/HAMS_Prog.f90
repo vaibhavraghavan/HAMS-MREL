@@ -149,7 +149,7 @@ PROGRAM HAMS_MREL
             print*, "Error encountered reading input file ControlFile.in. Terminating application."
             stop
         end if
-        call VerifyInputFilesExist(trim(inputdir), NBODY, success)
+        call VerifyInputFilesExist(trim(inputdir), NBODY, IRSP, success)
         if (.not. success) then
             print*, "Input files missing. Terminating application."
             stop
@@ -172,8 +172,11 @@ PROGRAM HAMS_MREL
       
       ! Reading the mesh file and Hydrostatic file
       IF (NBODY.EQ.1) THEN
-       open(2, FILE=trim(inputdir)//'/HullMesh.pnl', status='OLD', action='READ')
-       open(4, FILE=trim(inputdir)//'/Hydrostatic.in', status='UNKNOWN', action='READ')
+       open(2, file=trim(inputdir)//"/HullMesh.pnl", status="old", action="read")
+       open(4, file=trim(inputdir)//"/Hydrostatic.in", status="old", action="read")
+       if (IRSP .ne. 0) then
+            open(5, file=trim(inputdir)//"/WaterPlaneMesh.pnl", status="old", action="read")
+       end if
      
        DO II=1,3
         READ(2,*)
