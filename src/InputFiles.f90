@@ -153,18 +153,17 @@ module IO
         
         read(1,*) 
         read(1,*)
+
+        ! Read rotation centers
         if (NBODY == 1) then
             read(1,'(30x,3f12.3)') (XR(I), I=1,3)                          
-            write(9,*) "The rotation center is input as (please confirm if it is correct):" ! This is written into the Errorcheck.txt
-            write(9,'(3f12.3)') (XR(I), I=1,3)
         else if (NBODY > 1) then
             allocate(XR_MULTI(NBODY,3))
-            write(9,*) "The rotation center for the bodies are input as (please confirm if it is correct):" ! This is written into the Errorcheck.txt
             do NB = 1, NBODY
                 read(1,'(28x,3f12.3)') (XR_MULTI(NB,I), I=1,3)
-                write(9,'(3f12.3)') (XR_MULTI(NB,I), I=1,3)
             end do
         end if
+
         read(1,'(26x,f30.15)')     REFL
         read(1,'(26x,i16)')        ISOL
         read(1,'(23x,i16)')        IRSP
@@ -318,6 +317,30 @@ module IO
             end do
     end subroutine CreateHydrostarFiles
 
+    subroutine CreateRotationCenterFile(dir, numbodies)
+        use Body_mod, only : XR, XR_MULTI
+
+        implicit none
+        character(len=*), intent(in) :: dir
+        integer, intent(in) :: numbodies
+        integer :: i, j
+
+        open(9, file=dir//'/ErrorCheck.txt', status="UNKNOWN", action="WRITE")
+
+        if(numbodies == 1) then
+            write(9,*) "The rotation center is input as (please confirm if it is correct):"
+            write(9,'(3f12.3)') (XR(i), i=1,3)
+        else
+            write(9,*) "The rotation center for the bodies are input as (please confirm if it is correct):"
+            do i = 1, numbodies
+                write(9,'(3f12.3)') (XR_MULTI(i,j), j=1,3)
+            end do
+        end if
+
+        close(9)
+
+    end subroutine CreateRotationCenterFile
+
     ! Create output files and directories
     subroutine CreateOutputFiles(outputdir, numbodies, success)
         implicit none
@@ -346,6 +369,8 @@ module IO
         if (numbodies == 1) then
             call CreateHydrostarFiles(outputdir // "/Hydrostar_format")
         end if
+
+        call CreateRotationCenterFile(outputdir, numbodies)
         
     end subroutine CreateOutputFiles
 
