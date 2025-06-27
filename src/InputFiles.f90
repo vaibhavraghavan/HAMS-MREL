@@ -62,10 +62,6 @@ module IO
             return
         end if
 
-        ! Open file to write rotation center
-        open(9, file=dir//'/ErrorCheck.txt', status='UNKNOWN', action="WRITE")
-
-
         !  H :   Water depth; H<0: For infinite water depth; H>0: For finite water depth; 
         !  AMP:  Wave amplitude
         !  BETA: Wave incident angle with repect to the x-direction
