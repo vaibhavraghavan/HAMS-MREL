@@ -25,416 +25,349 @@
 !      Open files, and read the main input file
 !---------------------------------------------------------------------------------------------
 ! 
-SUBROUTINE ReadOpenFiles
-      USE HAMS_mod
-      USE Body_mod
-      USE WaveDyn_mod
-      USE FieldOutput_mod
-      IMPLICIT NONE
 
-      INTEGER I,J,err,IFS,NPET,NB,EXISTS
-      CHARACTER(LEN=100) FILE_RADIATION,FILE_NUMBER,BODY_CHECK
+module IO
 
-! ======================================================
-      OPEN(1, FILE='Input/ControlFile.in',      STATUS='OLD')
-      OPEN(9, FILE='Output/ErrorCheck.txt' ,    STATUS='UNKNOWN')
-! ====================================================
+    implicit none
 
-!  H :   Water depth; H<0: For infinite water depth; H>0: For finite water depth; 
-!  AMP:  Wave amplitude
-!  BETA: Wave incident angle with repect to the x-direction
-!  INFT=0,  input wave number; INFT=1, input wave frequency
-!  XC,YC,ZC: the coordinates of body rotation center or bouyancy center
+    public :: ReadControlFile
+    public :: VerifyInputFilesExist
+    public :: CreateOutputFiles
 
-        READ(1,*) 
-        READ(1,*) 
-        READ(1,'(14x,f30.15)')     H
-        READ(1,*) 
-        READ(1,*) 
-        READ(1,'(27x,i16)')        SYBO
-        READ(1,'(25x,i16)')        INFT
-        READ(1,'(25x,i17)')        OUFT
-        READ(1,'(26x,i16)')        NPET
-        IF (SYBO.EQ.0) THEN
-          IFS=0
-        ELSEIF (SYBO.EQ.1) THEN
-          IFS=2
-        ELSE
-          PRINT*, 'Warning: SYBO must be 0 or 1.'
-          PRINT*
-          IFS=0
-        ENDIF
-        IF (NPET.GE.0) THEN
-         NPER=IFS+NPET
-         ALLOCATE(WVNB(NPER))
-         READ(1,*) (WVNB(I),I=IFS+1,NPER)
-        ELSEIF (NPET.LT.0) THEN
-         NPET=ABS(NPET)
-         NPER=IFS+NPET
-         ALLOCATE(WVNB(NPER))
-         READ(1,'(27x,f30.15)')     WK1
-         READ(1,'(19x,f30.15)')     DWK
-         DO I=IFS+1,NPER
-          WVNB(I)=WK1+(I-IFS-1)*DWK
-         ENDDO
-        ENDIF
-        READ(1,*)
-        READ(1,*)
-        READ(1,'(A100)') BODY_CHECK
+    contains
+
+    subroutine ReadControlFile(dir, success)
+        
+        use HAMS_mod
+        use Body_mod
+        use WaveDyn_mod
+        use FieldOutput_mod
+      
+        implicit none
+        character(len=*), intent(in) :: dir
+        logical, intent(out) :: success
+        logical :: exists
+
+        integer I,J,err,IFS,NPET,NB
+        character(len=100) FILE_RADIATION,FILE_NUMBER,BODY_CHECK
+
+        success = .false.
+
+        ! Open input file
+        inquire(file=dir//"/ControlFile.in", exist=exists)
+        if (exists) then
+            open(1, file=dir//"/ControlFile.in", status="OLD", action="READ")
+        else
+            print *, "Error opening ControlFile.in for reading"
+            return
+        end if
+
+        !  H :   Water depth; H<0: For infinite water depth; H>0: For finite water depth; 
+        !  AMP:  Wave amplitude
+        !  BETA: Wave incident angle with repect to the x-direction
+        !  INFT=0,  input wave number; INFT=1, input wave frequency
+        !  XC,YC,ZC: the coordinates of body rotation center or bouyancy center
+
+        read(1,*) 
+        read(1,*) 
+        read(1,'(14x,f30.15)')     H
+        read(1,*) 
+        read(1,*) 
+        read(1,'(27x,i16)')        SYBO
+        read(1,'(25x,i16)')        INFT
+        read(1,'(25x,i17)')        OUFT
+        read(1,'(26x,i16)')        NPET
+        
+        if (SYBO == 0) then
+            IFS = 0
+        else if (SYBO == 1) then
+            IFS = 2
+        else
+            print*, 'Warning: SYBO must be 0 or 1.', new_line('a')
+            IFS = 0
+        end if
+        
+        if (NPET > 0) then
+            NPER = IFS+NPET
+            allocate(WVNB(NPER))
+            read(1,*) (WVNB(I), I = IFS+1, NPER)
+        else if (NPET < 0) then
+            NPET = ABS(NPET)
+            NPER = IFS+NPET
+            allocate(WVNB(NPER))
+            read(1,'(27x,f30.15)') WK1
+            read(1,'(19x,f30.15)') DWK
+            do I= IFS+1, NPER
+                WVNB(I) = WK1 + (I-IFS-1)*DWK
+            end do
+        end if
+        
+        read(1,*)
+        read(1,*)
+        read(1,'(A100)') BODY_CHECK
+        
         ! Reading of the number of multi-bodies
-        IF (INDEX(BODY_CHECK,"multi")>0) THEN
-        READ(1,'(24x,i16)')        NBODY
-        ELSE 
-        NBODY = 1
-        ENDIF
-        IF (NBODY.LT.0) THEN
-         PRINT*, 'ERROR:The number of bodies must be greater than or equal to 1'
-         PRINT*
-         pause
-         stop
-        ENDIF
-        ! Obtaining the origin coordinates of the LCS per mesh as well as the rotation w.r.t GCS
-        IF (NBODY.GT.1) THEN
-         ALLOCATE(LCS_MULTI(NBODY,4))
-         DO NB=1,NBODY
-          READ(1,'(26x,4f12.3)')      (LCS_MULTI(NB,I), I=1,4)
-         ENDDO
-        ENDIF
-        IF (NBODY.GT.1) THEN        
-        READ(1,*) 
-        READ(1,*)
-        READ(1,*) 
-        ENDIF
-        READ(1,'(23x,i16)')        NBETA
-        IF (NBETA.GT.0) THEN
-         ALLOCATE(WVHD(NBETA))
-         READ(1,*) (WVHD(I),I=1,NBETA)
-        ELSEIF (NBETA.LT.0) THEN
-         NBETA=ABS(NBETA)
-         ALLOCATE(WVHD(NBETA))
-         READ(1,'(20x,f30.15)')     BETA1
-         READ(1,'(17x,f30.15)')     DBETA
-         DO I=1,NBETA
-          WVHD(I)=BETA1+(I-1)*DBETA
-         ENDDO
-        ENDIF
+        if (INDEX(BODY_CHECK,"multi") > 0) then
+            READ(1,'(24x,i16)') NBODY
+        else 
+            NBODY = 1
+        end if
         
-        READ(1,*) 
-        READ(1,*)
-        IF (NBODY.EQ.1) THEN
-         READ(1,'(28x,3f12.3)')      (XR(I), I=1,3)                          
-         WRITE(9,*) "The rotation center is input as (please confirm if it is correct):" ! This is written into the Errorcheck.txt
-         WRITE(9,'(3f12.3)') (XR(I), I=1,3)
-        ELSEIF (NBODY.GT.1) THEN
-         ALLOCATE(XR_MULTI(NBODY,3))
-         WRITE(9,*) "The rotation center for the bodies are input as (please confirm if it is correct):" ! This is written into the Errorcheck.txt
-         DO NB=1,NBODY
-          READ(1,'(28x,3f12.3)')      (XR_MULTI(NB,I), I=1,3)
-          WRITE(9,'(3f12.3)') (XR_MULTI(NB,I), I=1,3)
-         ENDDO
-        ENDIF
-        READ(1,'(26x,f30.15)')     REFL
-        READ(1,'(26x,i16)')        ISOL
-        READ(1,'(23x,i16)')        IRSP
-        READ(1,'(23x,i16)')        NTHREAD
-        IF (IRSP.NE.0) THEN                                         ! At this point, it only checks if the waterplane mesh is there for a single body. For multi-bodies, this is added to the HAMS_Prog
-          IF (NBODY.EQ.1) THEN
-            OPEN(5, FILE='Input/WaterPlaneMesh.pnl', STATUS='OLD', &
-                IOSTAT=err)
-            if (err/=0) then
-            PRINT*, 'Error: The waterplane mesh file does not exist.'
-            PRINT*
+        if (NBODY < 0) then
+            print*, "ERROR: The number of bodies must be greater than or equal to 1.", new_line('a')
+            print*, "Terminating application."
             stop
-            endif
-          ENDIF
-        ENDIF
-
-        READ(1,*) 
-        READ(1,*) 
-        READ(1,'(27x,i16)')        NFP
-        ALLOCATE(XFP(NFP,3))
-        DO I=1,NFP
-!          READ(1,'(26x,3(1x,f10.4))')     (XFP(I,J), J=1,3)
-           READ(1,*)     (XFP(I,J), J=1,3)
-        ENDDO
-             
-! ====================================================
-!
-! Exciting forces
-!
-        OPEN(21,FILE='Output/Hams_format/OEXFOR1.txt',&
-             STATUS='UNKNOWN')
-        OPEN(22,FILE='Output/Hams_format/OEXFOR2.txt',&
-             STATUS='UNKNOWN')
-        OPEN(23,FILE='Output/Hams_format/OEXFOR3.txt',&
-             STATUS='UNKNOWN')
-        OPEN(24,FILE='Output/Hams_format/OEXFOR4.txt',&
-             STATUS='UNKNOWN')
-        OPEN(25,FILE='Output/Hams_format/OEXFOR5.txt',&
-             STATUS='UNKNOWN')
-        OPEN(26,FILE='Output/Hams_format/OEXFOR6.txt',&
-             STATUS='UNKNOWN')
-!                                           
-! Radiation forces and generated waves
-!
-        OPEN(31,FILE='Output/Hams_format/OAMASS1.txt',&
-             STATUS='UNKNOWN')
-        OPEN(32,FILE='Output/Hams_format/OAMASS2.txt',&
-             STATUS='UNKNOWN')
-        OPEN(33,FILE='Output/Hams_format/OAMASS3.txt',&
-             STATUS='UNKNOWN')
-        OPEN(34,FILE='Output/Hams_format/OAMASS4.txt',&
-             STATUS='UNKNOWN')
-        OPEN(35,FILE='Output/Hams_format/OAMASS5.txt',&
-             STATUS='UNKNOWN')
-        OPEN(36,FILE='Output/Hams_format/OAMASS6.txt',&
-             STATUS='UNKNOWN')
-!        
-        OPEN(41,FILE='Output/Hams_format/ODAMPING1.txt',&
-             STATUS='UNKNOWN')
-        OPEN(42,FILE='Output/Hams_format/ODAMPING2.txt',&
-             STATUS='UNKNOWN')
-        OPEN(43,FILE='Output/Hams_format/ODAMPING3.txt',&
-             STATUS='UNKNOWN')
-        OPEN(44,FILE='Output/Hams_format/ODAMPING4.txt',&
-             STATUS='UNKNOWN')
-        OPEN(45,FILE='Output/Hams_format/ODAMPING5.txt',&
-             STATUS='UNKNOWN')
-        OPEN(46,FILE='Output/Hams_format/ODAMPING6.txt',&
-             STATUS='UNKNOWN')
-
-! Outputs in WAMIT style
-        IF(NBODY.EQ.1) THEN
-        OPEN(61,FILE='Output/Wamit_format/AmssDamp.1',&
-             STATUS='UNKNOWN')
-        OPEN(62,FILE='Output/Wamit_format/ExcForce.3',&
-             STATUS='UNKNOWN')
-        OPEN(63,FILE='Output/Wamit_format/Motion.4',&
-             STATUS='UNKNOWN')
-        OPEN(64,FILE='Output/Wamit_format/PressureElevation.6p',&
-             STATUS='UNKNOWN')
-        OPEN(65,FILE='Output/Wamit_format/Hydrostat.hst',&
-             STATUS='UNKNOWN')
-        ELSEIF (NBODY.GT.1) THEN
-        OPEN(61,FILE='Output/Wamit_format/Buoy.1',&
-             STATUS='UNKNOWN')
-        OPEN(62,FILE='Output/Wamit_format/Buoy.3',&
-             STATUS='UNKNOWN')
-        OPEN(63,FILE='Output/Wamit_format/Buoy.4',&
-             STATUS='UNKNOWN')
-        OPEN(64,FILE='Output/Wamit_format/Buoy_Diffraction.6p',&
-             STATUS='UNKNOWN')
-        OPEN(65,FILE='Output/Wamit_format/Buoy.hst',&
-             STATUS='UNKNOWN')
-        OPEN(66,FILE='Output/Wamit_format/Buoy_Incidence.6p',&
-             STATUS='UNKNOWN')
-        DO I=1,NBODY
-          IF (I.GT.9) THEN                                                               ! For the radiation fields, the files are created pre body
-           WRITE(FILE_NUMBER,'(I2)') I
-          ELSEIF (I.GT.99) THEN
-           WRITE(FILE_NUMBER,'(I3)') I
-          ELSE
-           WRITE(FILE_NUMBER,'(I1)') I  
-          ENDIF
-          FILE_RADIATION='Output/Wamit_format/Buoy_Radiation_'//FILE_NUMBER
-          FILE_RADIATION=TRIM(FILE_RADIATION)//'.6p'
-          OPEN(210+I,FILE=FILE_RADIATION,&
-             STATUS='UNKNOWN')  
-        ENDDO
-        ENDIF
+        end if
         
-        IF (NBODY.EQ.1) THEN
+        ! Obtaining the origin coordinates of the LCS per mesh as well as the rotation w.r.t GCS
+        if (NBODY > 1) then
+            allocate(LCS_MULTI(NBODY,4))
+            do NB = 1, NBODY
+                read(1,'(26x,4f12.3)')      (LCS_MULTI(NB,I), I=1,4)
+            end do
+        end if
+        if (NBODY > 1) then        
+            read(1,*) 
+            read(1,*)
+            read(1,*) 
+        end if
         
-! Outputs in HydroStar style (Not for multi-bodies)
-        INQUIRE(file="Output/Hydrostar_format", EXIST=EXISTS)
-        IF (.NOT. EXISTS) THEN
-         call execute_command_line("mkdir -p Output/Hydrostar_format")
-        ENDIF
-!       
-        OPEN(71,FILE='Output/Hydrostar_format/AddedMass_11.rao',&
-             STATUS='UNKNOWN')
-        OPEN(72,FILE='Output/Hydrostar_format/AddedMass_12.rao',&
-             STATUS='UNKNOWN')
-        OPEN(73,FILE='Output/Hydrostar_format/AddedMass_13.rao',&
-             STATUS='UNKNOWN')
-        OPEN(74,FILE='Output/Hydrostar_format/AddedMass_14.rao',&
-             STATUS='UNKNOWN')
-        OPEN(75,FILE='Output/Hydrostar_format/AddedMass_15.rao',&
-             STATUS='UNKNOWN')
-        OPEN(76,FILE='Output/Hydrostar_format/AddedMass_16.rao',&
-             STATUS='UNKNOWN')
-
-        OPEN(81,FILE='Output/Hydrostar_format/AddedMass_21.rao',&
-             STATUS='UNKNOWN')
-        OPEN(82,FILE='Output/Hydrostar_format/AddedMass_22.rao',&
-             STATUS='UNKNOWN')
-        OPEN(83,FILE='Output/Hydrostar_format/AddedMass_23.rao',&
-             STATUS='UNKNOWN')
-        OPEN(84,FILE='Output/Hydrostar_format/AddedMass_24.rao',&
-             STATUS='UNKNOWN')
-        OPEN(85,FILE='Output/Hydrostar_format/AddedMass_25.rao',&
-             STATUS='UNKNOWN')
-        OPEN(86,FILE='Output/Hydrostar_format/AddedMass_26.rao',&
-             STATUS='UNKNOWN')
+        read(1,'(23x,i16)') NBETA
         
-        OPEN(91,FILE='Output/Hydrostar_format/AddedMass_31.rao',&
-             STATUS='UNKNOWN')
-        OPEN(92,FILE='Output/Hydrostar_format/AddedMass_32.rao',&
-             STATUS='UNKNOWN')
-        OPEN(93,FILE='Output/Hydrostar_format/AddedMass_33.rao',&
-             STATUS='UNKNOWN')
-        OPEN(94,FILE='Output/Hydrostar_format/AddedMass_34.rao',&
-             STATUS='UNKNOWN')
-        OPEN(95,FILE='Output/Hydrostar_format/AddedMass_35.rao',&
-             STATUS='UNKNOWN')
-        OPEN(96,FILE='Output/Hydrostar_format/AddedMass_36.rao',&
-             STATUS='UNKNOWN')
+        if (NBETA > 0) then
+            allocate(WVHD(NBETA))
+            read(1,*) (WVHD(I),I=1,NBETA)
+        else if (NBETA < 0) then
+            NBETA = ABS(NBETA)
+            allocate(WVHD(NBETA))
+            read(1,'(20x,f30.15)') BETA1
+            read(1,'(17x,f30.15)') DBETA
+            do I = 1, NBETA
+                WVHD(I)=BETA1+(I-1)*DBETA
+            end do
+        end if
         
-        OPEN(101,FILE='Output/Hydrostar_format/AddedMass_41.rao',&
-             STATUS='UNKNOWN')
-        OPEN(102,FILE='Output/Hydrostar_format/AddedMass_42.rao',&
-             STATUS='UNKNOWN')
-        OPEN(103,FILE='Output/Hydrostar_format/AddedMass_43.rao',&
-             STATUS='UNKNOWN')
-        OPEN(104,FILE='Output/Hydrostar_format/AddedMass_44.rao',&
-             STATUS='UNKNOWN')
-        OPEN(105,FILE='Output/Hydrostar_format/AddedMass_45.rao',&
-             STATUS='UNKNOWN')
-        OPEN(106,FILE='Output/Hydrostar_format/AddedMass_46.rao',&
-             STATUS='UNKNOWN')
+        read(1,*) 
+        read(1,*)
+
+        ! Read rotation centers
+        if (NBODY == 1) then
+            read(1,'(28x,3f12.3)') (XR(I), I=1,3)                          
+        else if (NBODY > 1) then
+            allocate(XR_MULTI(NBODY,3))
+            do NB = 1, NBODY
+                read(1,'(28x,3f12.3)') (XR_MULTI(NB,I), I=1,3)
+            end do
+        end if
+
+        read(1,'(26x,f30.15)')     REFL
+        read(1,'(26x,i16)')        ISOL
+        read(1,'(23x,i16)')        IRSP
+        read(1,'(23x,i16)')        NTHREAD
+
+        read(1,*) 
+        read(1,*) 
+        read(1,'(27x,i16)')        NFP
+        allocate(XFP(NFP,3))
+        do I = 1,NFP
+            ! READ(1,'(26x,3(1x,f10.4))')     (XFP(I,J), J=1,3)
+            read(1,*) (XFP(I,J), J=1,3)
+        end do
+
+        success = .true.
+
+    end subroutine ReadControlFile
+
+    subroutine VerifyInputFilesExist(dir, numbodies, irrfreq, success)
+        implicit none
+        character(len=*), intent(in) :: dir
+        integer, intent(in) :: numbodies, irrfreq
+        logical, intent(out) :: success
+        logical :: hullexists, hydroexists, wpmexists
+        integer :: i
+        character(len=1) :: istr
+
+        success = .true.
+        wpmexists = .true.
+
+        if (numbodies == 1) then
+            istr = '1'
+            inquire(file=dir//"/HullMesh.pnl", exist=hullexists)
+            inquire(file=dir//"/Hydrostatic.in", exist=hydroexists)
+            if (irrfreq .ne. 0) then
+                inquire(file=dir//"/WaterPlaneMesh.pnl", exist=wpmexists)
+            end if
+        else if (numbodies > 1) then
+            do i = 1, numbodies
+                write(istr, '(I1)') i   ! Convert i to str
+                inquire(file=dir//"/HullMesh_"//istr//".pnl", exist=hullexists)
+                inquire(file=dir//"/Hydrostatic_"//istr//".in", exist=hydroexists)
+                if (irrfreq .ne. 0) then
+                    inquire(file=dir//"/WaterPlaneMesh_"//istr//".pnl", exist=wpmexists)
+                end if
+                if ((.not. hullexists) .or. (.not. hydroexists) .or. (.not. wpmexists)) then
+                    exit
+                end if
+            end do
+        end if
+
+        if (.not. hullexists) then 
+            print*, "HullMesh.pnl input file missing for body ", istr, new_line('a')
+            success = .false.
+        end if
+        if (.not. hydroexists) then
+            print*, "Hydrostatic.in input file missing for body ", istr, new_line('a')
+            success = .false.
+        end if
+        if (.not. wpmexists) then
+            print *, "WaterPlaneMesh.pnl input file missing for body ", istr, new_line('a')
+            success = .false.
+        end if
+
+    end subroutine VerifyInputFilesExist
+
+    subroutine CreateDirectory(dir, success)
+        implicit none
+        character(len=*), intent(in) :: dir
+        logical, intent(out) :: success
+        logical :: exists
+        integer :: cstat
+        character(100) :: cmsg
+
+        inquire(directory=dir, exist=exists)
+        if (.not. exists) then
+            call execute_command_line("mkdir -p " // dir, CMDSTAT=cstat, CMDMSG=cmsg)
+            if (cstat /= 0) then
+                print *, "Failed to create directory ", dir, ". Error: ", trim(cmsg)
+                success = .false.
+                return
+            end if
+        end if
+
+        success = .true.
+
+    end subroutine CreateDirectory
+
+    subroutine CreateHamsFiles(dir)
+        implicit none
+        character(len=*), intent(in) :: dir
+        character(len=1) :: istr
+        integer :: i
+
+        ! IDs used in open statements are also used in write statements
+        ! Don't modify their values or write statements will not find the files
+        do i = 1, 6
+            write(istr, '(I1)') i   ! Convert i to str
+            open(20+i, file=dir//'/OEXFOR'//istr//'.txt', status='UNKNOWN')
+            open(30+i, file=dir//'/OAMASS'//istr//'.txt', status='UNKNOWN')
+            open(40+i, file=dir//'/ODAMPING'//istr//'.txt', status='UNKNOWN')
+        end do
+    end subroutine CreateHamsFiles
+
+    subroutine CreateWamitFiles(dir, numbodies)
+        implicit none
+        character(len=*), intent(in) :: dir
+        integer, intent(in) :: numbodies
+        character(len=5) :: istr ! len=5 assumes <= 99999 bodies
+        integer :: i
+
+        ! IDs used in open statements are also used in write statements
+        ! Don't modify their values or write statements will not find the files
+        if (numbodies == 1) then
+            open(61, file=dir//'/AmssDamp.1', status='UNKNOWN')
+            open(62, file=dir//'/ExcForce.3', status='UNKNOWN')
+            open(63, file=dir//'/Motion.4', status='UNKNOWN')
+            open(64, file=dir//'/PressureElevation.6p', status='UNKNOWN')
+            open(65, file=dir//'/Hydrostat.hst', status='UNKNOWN')
+        else if (numbodies > 1) then
+            open(61, file=dir//'/Buoy.1', status='UNKNOWN')
+            open(62, file=dir//'/Buoy.3', status='UNKNOWN')
+            open(63, file=dir//'/Buoy.4', status='UNKNOWN')
+            open(64, file=dir//'/Buoy_Diffraction.6p', status='UNKNOWN')
+            open(65, file=dir//'/Buoy.hst', status='UNKNOWN')
+            open(66, file=dir//'/Buoy_Incidence.6p', status='UNKNOWN')
+            do i = 1, numbodies
+                write(istr, '(I5)') i
+                open(210+i, file=dir//'/Buoy_Radiation_'//trim(adjustl(istr))//'.6p', status='UNKNOWN') 
+            end do
+        end if
+    end subroutine CreateWamitFiles
+
+    subroutine CreateHydrostarFiles(dir)
+        implicit none
+        character(len=*), intent(in) :: dir
+        character(len=1) :: istr, jstr
+        integer :: i, j
+
+        ! IDs used in open statements are also used in write statements
+        ! Don't modify their values or write statements will not find the files
+        do i = 1, 6
+            write(istr, '(I1)') i   ! Convert i to str
+            do j = 1, 6
+                write(jstr, '(I1)') j   ! Convert j to str
+                open((60+(i*10))+j, file=dir//'/AddedMass_'//istr//jstr//'.rao', status='UNKNOWN')
+                open((120+(i*10))+j, file=dir//'/WaveDamping_'//istr//jstr//'.rao', status='UNKNOWN')
+            end do
+            open(190+i, file=dir//'/Excitation_'//istr//'.rao', status='UNKNOWN')
+            open(200+i, file=dir//'/Motion_'//istr//'.rao', status='UNKNOWN')
+            end do
+    end subroutine CreateHydrostarFiles
+
+    subroutine CreateRotationCenterFile(dir, numbodies)
+        use Body_mod, only : XR, XR_MULTI
+
+        implicit none
+        character(len=*), intent(in) :: dir
+        integer, intent(in) :: numbodies
+        integer :: i, j
+
+        open(9, file=dir//'/ErrorCheck.txt', status="UNKNOWN", action="WRITE")
+
+        if(numbodies == 1) then
+            write(9,*) "The rotation center is input as (please confirm if it is correct):"
+            write(9,'(3f12.3)') (XR(i), i=1,3)
+        else
+            write(9,*) "The rotation center for the bodies are input as (please confirm if it is correct):"
+            do i = 1, numbodies
+                write(9,'(3f12.3)') (XR_MULTI(i,j), j=1,3)
+            end do
+        end if
+
+        close(9)
+
+    end subroutine CreateRotationCenterFile
+
+    ! Create output files and directories
+    subroutine CreateOutputFiles(outputdir, numbodies, success)
+        implicit none
+        character(len=*), intent(in) :: outputdir
+        integer, intent(in) :: numbodies
+        logical, intent(out) :: success
+
+        ! Create output directories
+        call CreateDirectory(outputdir, success)
+        if (success) then
+            call CreateDirectory(outputdir // "/Hams_format", success)
+            call CreateDirectory(outputdir // "/Wamit_format", success)
+            if (numbodies == 1) then
+                call CreateDirectory(outputdir // "/Hydrostar_format", success)
+            end if
+        end if
+
+        ! Exit if directories were not created
+        if (.not. success) then
+            success = .false.
+            return
+        end if
         
-        OPEN(111,FILE='Output/Hydrostar_format/AddedMass_51.rao',&
-             STATUS='UNKNOWN')
-        OPEN(112,FILE='Output/Hydrostar_format/AddedMass_52.rao',&
-             STATUS='UNKNOWN')
-        OPEN(113,FILE='Output/Hydrostar_format/AddedMass_53.rao',&
-             STATUS='UNKNOWN')
-        OPEN(114,FILE='Output/Hydrostar_format/AddedMass_54.rao',&
-             STATUS='UNKNOWN')
-        OPEN(115,FILE='Output/Hydrostar_format/AddedMass_55.rao',&
-             STATUS='UNKNOWN')
-        OPEN(116,FILE='Output/Hydrostar_format/AddedMass_56.rao',&
-             STATUS='UNKNOWN')
+        call CreateHamsFiles(outputdir//"/Hams_format")
+        call CreateWamitFiles(outputdir//"/Wamit_format", numbodies)
+        if (numbodies == 1) then
+            call CreateHydrostarFiles(outputdir // "/Hydrostar_format")
+        end if
+
+        call CreateRotationCenterFile(outputdir, numbodies)
         
-        OPEN(121,FILE='Output/Hydrostar_format/AddedMass_61.rao',&
-             STATUS='UNKNOWN')
-        OPEN(122,FILE='Output/Hydrostar_format/AddedMass_62.rao',&
-             STATUS='UNKNOWN')
-        OPEN(123,FILE='Output/Hydrostar_format/AddedMass_63.rao',&
-             STATUS='UNKNOWN')
-        OPEN(124,FILE='Output/Hydrostar_format/AddedMass_64.rao',&
-             STATUS='UNKNOWN')
-        OPEN(125,FILE='Output/Hydrostar_format/AddedMass_65.rao',&
-             STATUS='UNKNOWN')
-        OPEN(126,FILE='Output/Hydrostar_format/AddedMass_66.rao',&
-             STATUS='UNKNOWN')
+    end subroutine CreateOutputFiles
 
-        OPEN(131,FILE='Output/Hydrostar_format/WaveDamping_11.rao',&
-             STATUS='UNKNOWN')
-        OPEN(132,FILE='Output/Hydrostar_format/WaveDamping_12.rao',&
-             STATUS='UNKNOWN')
-        OPEN(133,FILE='Output/Hydrostar_format/WaveDamping_13.rao',&
-             STATUS='UNKNOWN')
-        OPEN(134,FILE='Output/Hydrostar_format/WaveDamping_14.rao',&
-             STATUS='UNKNOWN')
-        OPEN(135,FILE='Output/Hydrostar_format/WaveDamping_15.rao',&
-             STATUS='UNKNOWN')
-        OPEN(136,FILE='Output/Hydrostar_format/WaveDamping_16.rao',&
-             STATUS='UNKNOWN')
-
-        OPEN(141,FILE='Output/Hydrostar_format/WaveDamping_21.rao',&
-             STATUS='UNKNOWN')
-        OPEN(142,FILE='Output/Hydrostar_format/WaveDamping_22.rao',&
-             STATUS='UNKNOWN')
-        OPEN(143,FILE='Output/Hydrostar_format/WaveDamping_23.rao',&
-             STATUS='UNKNOWN')
-        OPEN(144,FILE='Output/Hydrostar_format/WaveDamping_24.rao',&
-             STATUS='UNKNOWN')
-        OPEN(145,FILE='Output/Hydrostar_format/WaveDamping_25.rao',&
-             STATUS='UNKNOWN')
-        OPEN(146,FILE='Output/Hydrostar_format/WaveDamping_26.rao',&
-             STATUS='UNKNOWN')
-
-        OPEN(151,FILE='Output/Hydrostar_format/WaveDamping_31.rao',&
-             STATUS='UNKNOWN')
-        OPEN(152,FILE='Output/Hydrostar_format/WaveDamping_32.rao',&
-             STATUS='UNKNOWN')
-        OPEN(153,FILE='Output/Hydrostar_format/WaveDamping_33.rao',&
-             STATUS='UNKNOWN')
-        OPEN(154,FILE='Output/Hydrostar_format/WaveDamping_34.rao',&
-             STATUS='UNKNOWN')
-        OPEN(155,FILE='Output/Hydrostar_format/WaveDamping_35.rao',&
-             STATUS='UNKNOWN')
-        OPEN(156,FILE='Output/Hydrostar_format/WaveDamping_36.rao',&
-             STATUS='UNKNOWN')
-
-        OPEN(161,FILE='Output/Hydrostar_format/WaveDamping_41.rao',&
-             STATUS='UNKNOWN')
-        OPEN(162,FILE='Output/Hydrostar_format/WaveDamping_42.rao',&
-             STATUS='UNKNOWN')
-        OPEN(163,FILE='Output/Hydrostar_format/WaveDamping_43.rao',&
-             STATUS='UNKNOWN')
-        OPEN(164,FILE='Output/Hydrostar_format/WaveDamping_44.rao',&
-             STATUS='UNKNOWN')
-        OPEN(165,FILE='Output/Hydrostar_format/WaveDamping_45.rao',&
-             STATUS='UNKNOWN')
-        OPEN(166,FILE='Output/Hydrostar_format/WaveDamping_46.rao',&
-             STATUS='UNKNOWN')
-
-        OPEN(171,FILE='Output/Hydrostar_format/WaveDamping_51.rao',&
-             STATUS='UNKNOWN')
-        OPEN(172,FILE='Output/Hydrostar_format/WaveDamping_52.rao',&
-             STATUS='UNKNOWN')
-        OPEN(173,FILE='Output/Hydrostar_format/WaveDamping_53.rao',&
-             STATUS='UNKNOWN')
-        OPEN(174,FILE='Output/Hydrostar_format/WaveDamping_54.rao',&
-             STATUS='UNKNOWN')
-        OPEN(175,FILE='Output/Hydrostar_format/WaveDamping_55.rao',&
-             STATUS='UNKNOWN')
-        OPEN(176,FILE='Output/Hydrostar_format/WaveDamping_56.rao',&
-             STATUS='UNKNOWN')
-
-        OPEN(181,FILE='Output/Hydrostar_format/WaveDamping_61.rao',&
-             STATUS='UNKNOWN')
-        OPEN(182,FILE='Output/Hydrostar_format/WaveDamping_62.rao',&
-             STATUS='UNKNOWN')
-        OPEN(183,FILE='Output/Hydrostar_format/WaveDamping_63.rao',&
-             STATUS='UNKNOWN')
-        OPEN(184,FILE='Output/Hydrostar_format/WaveDamping_64.rao',&
-             STATUS='UNKNOWN')
-        OPEN(185,FILE='Output/Hydrostar_format/WaveDamping_65.rao',&
-             STATUS='UNKNOWN')
-        OPEN(186,FILE='Output/Hydrostar_format/WaveDamping_66.rao',&
-             STATUS='UNKNOWN')
-        
-        OPEN(191,FILE='Output/Hydrostar_format/Excitation_1.rao',&
-             STATUS='UNKNOWN')
-        OPEN(192,FILE='Output/Hydrostar_format/Excitation_2.rao',&
-             STATUS='UNKNOWN')
-        OPEN(193,FILE='Output/Hydrostar_format/Excitation_3.rao',&
-             STATUS='UNKNOWN')
-        OPEN(194,FILE='Output/Hydrostar_format/Excitation_4.rao',&
-             STATUS='UNKNOWN')
-        OPEN(195,FILE='Output/Hydrostar_format/Excitation_5.rao',&
-             STATUS='UNKNOWN')
-        OPEN(196,FILE='Output/Hydrostar_format/Excitation_6.rao',&
-             STATUS='UNKNOWN')
-        
-        OPEN(201,FILE='Output/Hydrostar_format/Motion_1.rao',&
-             STATUS='UNKNOWN')
-        OPEN(202,FILE='Output/Hydrostar_format/Motion_2.rao',&
-             STATUS='UNKNOWN')
-        OPEN(203,FILE='Output/Hydrostar_format/Motion_3.rao',&
-             STATUS='UNKNOWN')
-        OPEN(204,FILE='Output/Hydrostar_format/Motion_4.rao',&
-             STATUS='UNKNOWN')
-        OPEN(205,FILE='Output/Hydrostar_format/Motion_5.rao',&
-             STATUS='UNKNOWN')
-        OPEN(206,FILE='Output/Hydrostar_format/Motion_6.rao',&
-             STATUS='UNKNOWN')
-        ENDIF
-!!     
-
-      END Subroutine ReadOpenFiles
- 
-
+end module IO
