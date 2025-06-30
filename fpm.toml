@@ -18,3 +18,7 @@ source-dir = "src"
 
 # Tell fpm which file is the entry point (or "main file") of the application
 main = "HAMS_Prog.f90"
+
+# Tell fpm to build with OpenMP
+[dependencies]
+openmp = "*"
