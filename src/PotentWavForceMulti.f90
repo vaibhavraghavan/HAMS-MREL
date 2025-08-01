@@ -41,12 +41,12 @@ CONTAINS
 ! ------------------------------------------------------------------- 
 !          Compute the wave exciting force on a 3D body
 ! ------------------------------------------------------------------- 
-      SUBROUTINE EFORCE_MULTI(WK,W1,TP,BETA,AMP,EXFC,NELEM_START,NELEM_END,NBODY)
+      SUBROUTINE EFORCE_MULTI(WK,W1,TP,BETA,AMP,EXFC,NELEM_START,NELEM_END,NBODY,DOF1)
       IMPLICIT NONE
 !
       REAL*8,INTENT(IN):: WK,W1,TP,BETA,AMP
       COMPLEX*16,INTENT(OUT):: EXFC(6)
-      INTEGER,INTENT(IN):: NELEM_START,NELEM_END,NBODY
+      INTEGER,INTENT(IN):: NELEM_START,NELEM_END,NBODY,DOF1
       
       INTEGER IEL,IP,MD
       REAL*8:: XP,YP,ZP,AMFJ(6)
@@ -118,7 +118,7 @@ CONTAINS
        WRITE(20+MD,1010) WK,W1,REAL(EXFC(MD)),IMAG(EXFC(MD)) ! These are different from the values of WAMIT? These change the RAOs. Why is that happening?
        
        IF (ABS(TP+1.D0).GT.1.E-6.AND.ABS(TP).GT.1.E-6) THEN
-        WRITE(62,1030)  OUFR,BETA*180.0D0/PI,MD,MOD,PHS(MD),NREL,NIMG
+        WRITE(62,1030)  OUFR, BETA*180.0D0/PI, (DOF1 - 1)*6 + MD, MOD, PHS(MD), NREL, NIMG
        ENDIF
            
       ENDDO
@@ -134,12 +134,12 @@ CONTAINS
 ! ------------------------------------------------------------------- 
 !          Compute the wave radiation force on a 3D body
 ! ------------------------------------------------------------------- 
-      SUBROUTINE RFORCE_MULTI(WK,W1,TP,AMAS,BDMP,NELEM_START,NELEM_END,PHIDOF)
+      SUBROUTINE RFORCE_MULTI(WK,W1,TP,AMAS,BDMP,NELEM_START,NELEM_END,PHIDOF,DOF1,DOF2)
       IMPLICIT   NONE
 !
       REAL*8,INTENT(IN):: WK,W1,TP
       REAL*8,INTENT(OUT):: AMAS(6,6),BDMP(6,6)
-      INTEGER,INTENT(IN):: NELEM_START,NELEM_END,PHIDOF
+      INTEGER,INTENT(IN):: NELEM_START,NELEM_END,PHIDOF,DOF1,DOF2
       
       INTEGER IEL,JEL,MD,MD1,MD2,IP
       REAL*8:: AMFJ(6),NAMAS(6,6),NBDMP(6,6)
@@ -204,9 +204,9 @@ CONTAINS
        DO MD1=1,6
           DO MD2=1,6
             IF (ABS(TP+1.D0).LT.1.E-6.OR.ABS(TP).LT.1.E-6) THEN
-             WRITE(61,1020) OUFR,MD1,MD2,AMAS(MD1,MD2)/RHO
+             WRITE(61,1020) OUFR, (DOF1 - 1)*6 + MD1, (DOF2 - 1)*6 + MD2, AMAS(MD1,MD2)/RHO
             ELSE
-             WRITE(61,1020) OUFR,MD1,MD2,AMAS(MD1,MD2)/RHO,BDMP(MD1,MD2)/(RHO*W1)
+             WRITE(61,1020) OUFR, (DOF1 - 1)*6 + MD1, (DOF2 - 1)*6 + MD2, AMAS(MD1,MD2)/RHO, BDMP(MD1,MD2)/(RHO*W1)
             ENDIF
           ENDDO
        ENDDO
