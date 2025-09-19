@@ -185,13 +185,12 @@ module IO
         logical, intent(out) :: success
         logical :: hullexists, hydroexists, wpmexists
         integer :: i
-        character(len=1) :: istr
+        character(len=5) :: istr ! len=5 assumes <= 99999 bodies
 
         success = .true.
         wpmexists = .true.
 
         if (numbodies == 1) then
-            istr = '1'
             inquire(file=dir//"/HullMesh.pnl", exist=hullexists)
             inquire(file=dir//"/Hydrostatic.in", exist=hydroexists)
             if (irrfreq .ne. 0) then
@@ -199,11 +198,11 @@ module IO
             end if
         else if (numbodies > 1) then
             do i = 1, numbodies
-                write(istr, '(I1)') i   ! Convert i to str
-                inquire(file=dir//"/HullMesh_"//istr//".pnl", exist=hullexists)
-                inquire(file=dir//"/Hydrostatic_"//istr//".in", exist=hydroexists)
+                write(istr, '(I5)') i   ! Convert i to str
+                inquire(file=dir//"/HullMesh_"//trim(adjustl(istr))//".pnl", exist=hullexists)
+                inquire(file=dir//"/Hydrostatic_"//trim(adjustl(istr))//".in", exist=hydroexists)
                 if (irrfreq .ne. 0) then
-                    inquire(file=dir//"/WaterPlaneMesh_"//istr//".pnl", exist=wpmexists)
+                    inquire(file=dir//"/WaterPlaneMesh_"//trim(adjustl(istr))//".pnl", exist=wpmexists)
                 end if
                 if ((.not. hullexists) .or. (.not. hydroexists) .or. (.not. wpmexists)) then
                     exit
