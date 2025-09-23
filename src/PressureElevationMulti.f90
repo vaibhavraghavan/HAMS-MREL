@@ -408,7 +408,7 @@ CONTAINS
 !
       INTEGER,INTENT(IN):: NFILE,NBODY
       INTEGER IPT,MD,EMD,IHD
-      REAL*8 XP(3),REL,IMG,MOD,PHS
+      REAL*8 XP(3)
       COMPLEX*16 VCP,NVCP
       INTEGER,ALLOCATABLE:: FACTOR_NORMAL(:)
       
@@ -424,17 +424,12 @@ CONTAINS
         CALL CalElevationMulti(XP,'Diffraction',6*NBODY+1,VCP,NBODY,0,FACTOR_NORMAL)
         CALL WamitNondimensMulti(VCP,'Elevation','Diffraction',0,NVCP)
        ENDIF
-       
-       !WRITE(NFILE,1020) OUFR,BETA*180.0D0/PI,IPT,NVCP
-       REL=REAL(NVCP)
-       IMG=IMAG(NVCP)
-       MOD=ABS(NVCP)
-       PHS=ATAN2D(IMG,REL)
-       WRITE(NFILE,1020) OUFR,BETA*180.0D0/PI,IPT,MOD,PHS,REL,IMG
+
+       WRITE(NFILE,1020) OUFR, BETA*180.0D0/PI, IPT, NVCP
        
       ENDDO
       
-1020  FORMAT(2ES14.6,I10,4ES14.6)
+1020  FORMAT(2ES14.6,I10,2ES14.6)
       RETURN
       END SUBROUTINE OutputPressureElevation_DiffractionMulti
       

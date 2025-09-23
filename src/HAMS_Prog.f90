@@ -701,7 +701,7 @@ program HAMS_MREL
                     ENDIF
                     NELEM_GLOBAL=NELEM_GLOBAL+NELEM_MULTI(FILE_M)
                 ENDDO
-                CALL OutputPressureElevation_DiffractionMulti(64,NBODY) ! File 64 is the diffraction file created as part of the process when reading the input files.
+                CALL OutputPressureElevation_DiffractionMulti(210,NBODY) ! File 64 is the diffraction file created as part of the process when reading the input files.
                 CALL OutputPressureElevation_IncidenceMulti(66,NBODY)
          
             ENDDO
