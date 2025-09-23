@@ -285,10 +285,7 @@ module IO
             open(64, file=dir//'/Buoy_Diffraction.6p', status='UNKNOWN')
             open(65, file=dir//'/Buoy.hst', status='UNKNOWN')
             open(66, file=dir//'/Buoy_Incidence.6p', status='UNKNOWN')
-            do i = 1, numbodies
-                write(istr, '(I5)') i
-                open(210+i, file=dir//'/Buoy_Radiation_'//trim(adjustl(istr))//'.6p', status='UNKNOWN') 
-            end do
+            open(210, file=dir//'/Buoy_Radiation.6p', status='UNKNOWN')
         end if
     end subroutine CreateWamitFiles
 
