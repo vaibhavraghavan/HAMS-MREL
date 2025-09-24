@@ -670,7 +670,7 @@ program HAMS_MREL
                     CALL RFORCE_MULTI(WK,W1,TP,AMAS_MULTI_COMB(KK,6*(FILE_M-1)+1:6*(FILE_M-1)+6,6*(FILE_N-1)+1:6*(FILE_N-1)+6),BDMP_MULTI_COMB(KK,6*(FILE_M-1)+1:6*(FILE_M-1)+6,6*(FILE_N-1)+1:6*(FILE_N-1)+6),NELEM_TOTAL_RAD(2*FILE_M-1),NELEM_TOTAL_RAD(2*FILE_M),FILE_N,FILE_M,FILE_N) 
                 ENDDO
             ENDDO
-            CALL OutputPressureElevation_RadiationMulti(210,NBODY)
+            CALL OutputPressureElevation_RadiationMulti(64,NBODY)
         
             ! Solving the diffraction problem 
             DO II=1,NBETA
@@ -701,7 +701,7 @@ program HAMS_MREL
                     ENDIF
                     NELEM_GLOBAL=NELEM_GLOBAL+NELEM_MULTI(FILE_M)
                 ENDDO
-                CALL OutputPressureElevation_DiffractionMulti(210,NBODY) ! File 64 is the diffraction file created as part of the process when reading the input files.
+                CALL OutputPressureElevation_DiffractionMulti(64,NBODY) ! File 64 is the diffraction file created as part of the process when reading the input files.
                 CALL OutputPressureElevation_IncidenceMulti(66,NBODY)
          
             ENDDO

@@ -272,20 +272,13 @@ module IO
 
         ! IDs used in open statements are also used in write statements
         ! Don't modify their values or write statements will not find the files
-        if (numbodies == 1) then
-            open(61, file=dir//'/AmssDamp.1', status='UNKNOWN')
-            open(62, file=dir//'/ExcForce.3', status='UNKNOWN')
-            open(63, file=dir//'/Motion.4', status='UNKNOWN')
-            open(64, file=dir//'/PressureElevation.6p', status='UNKNOWN')
-            open(65, file=dir//'/Hydrostat.hst', status='UNKNOWN')
-        else if (numbodies > 1) then
-            open(61, file=dir//'/Buoy.1', status='UNKNOWN')
-            open(62, file=dir//'/Buoy.3', status='UNKNOWN')
-            open(63, file=dir//'/Buoy.4', status='UNKNOWN')
-            open(64, file=dir//'/Buoy_Diffraction.6p', status='UNKNOWN')
-            open(65, file=dir//'/Buoy.hst', status='UNKNOWN')
-            open(66, file=dir//'/Buoy_Incidence.6p', status='UNKNOWN')
-            open(210, file=dir//'/Buoy_Radiation.6p', status='UNKNOWN')
+        open(61, file=dir//'/AmssDamp.1', status='UNKNOWN')
+        open(62, file=dir//'/ExcForce.3', status='UNKNOWN')
+        open(63, file=dir//'/Motion.4', status='UNKNOWN')
+        open(64, file=dir//'/PressureElevation.6p', status='UNKNOWN')
+        open(65, file=dir//'/Hydrostat.hst', status='UNKNOWN')
+        if (numbodies > 1) then
+            open(66, file=dir//'/PressureElevationIncidence.6p', status='UNKNOWN')
         end if
     end subroutine CreateWamitFiles
 
