@@ -24,34 +24,35 @@
 !       Calculate the motion response in frequency domain by panel model.
 !---------------------------------------------------------------------------------------------
 !
-SUBROUTINE SolveMotion(W1,TP,OUFR,BETA,AMP,AMAS,BDMP,&
-     BLNR,BQDR,EXFC,DSPL)
+SUBROUTINE SolveMotionMulti(W1,TP,OUFR,BETA,AMP,AMAS,BDMP,&
+     BLNR,BQDR,EXFC,DSPL,NBODY)
       USE HAMS_mod
       USE Const_mod
       USE Body_mod
       IMPLICIT   NONE
 
+      INTEGER,INTENT(IN):: NBODY
       REAL*8,INTENT(IN)::  W1,TP,OUFR,BETA,AMP
-      REAL*8,INTENT(IN):: AMAS(6,6),BDMP(6,6),BLNR(6,6),BQDR(6,6)
-      COMPLEX*16,INTENT(IN):: EXFC(6)
-      COMPLEX*16,INTENT(OUT):: DSPL(6)
-      REAL*8 DLANGE
-      
-      INTEGER INFO,IPV(6),MD,MEXP,I,J
-
-      REAL*8 NORM,WORK(6),RERR
+      REAL*8,INTENT(IN):: AMAS(NBODY*6,NBODY*6),BDMP(NBODY*6,NBODY*6),BLNR(NBODY,6,6),BQDR(NBODY,6,6)
+      COMPLEX*16,INTENT(IN):: EXFC(NBODY*6)
+      COMPLEX*16,INTENT(OUT):: DSPL(NBODY*6)
+      REAL*8 DLANGE                                          
+                                                             
+      INTEGER INFO,IPV(NBODY*6),MD,MEXP,I,J                  
+                                                             
+      REAL*8 NORM,WORK(NBODY*6),RERR
       REAL*8 MOD,PHS,REL,IMG,NREL,NIMG,NFAC
-      COMPLEX*16 LEFT(6,6),RIGHT(6),VDMP(6,6),DSPL1(6),DX(6)
+      COMPLEX*16 LEFT(NBODY*6,NBODY*6),RIGHT(NBODY*6),VDMP(NBODY*6,NBODY*6),DSPL1(NBODY*6),DX(NBODY*6)
 !
 ! ========================================================
-
-      NORM=DLANGE( 'M', 6, 6, BQDR, 6, WORK )                                                                   ! Check this reference - https://www.ibm.com/docs/de/essl/6.1?topic=subroutines-slange-dlange-clange-zlange-general-matrix-norm
+      ! Add the code to find the COMB of BQDR and BLNR
+      NORM=DLANGE( 'M', NBODY*6, NBODY*6, BQDR, NBODY*6, WORK )                                                                   ! Check this reference - https://www.ibm.com/docs/de/essl/6.1?topic=subroutines-slange-dlange-clange-zlange-general-matrix-norm
       
       !PRINT*,'NORM',NORM
       !PAUSE
       
       IF (NORM.LT.1.E-6) THEN
-       LEFT=-W1**2*(MATX+AMAS)+CI*W1*(BDMP+BLNR)+CRS+KSTF
+       LEFT=-W1**2*(MATX+AMAS)+CI*W1*(BDMP+BLNR)+CRS+KSTF ! Modify the size of BDMP and BQDR
        RIGHT=EXFC
        CALL ZGESV( 6, 1, LEFT, 6, IPV, RIGHT, 6, INFO )                                                           ! This is function from LAPACK. Check - https://netlib.org/lapack/explore-html/d6/d10/group__complex16_g_esolve_ga531713dfc62bc5df387b7bb486a9deeb.html
        DSPL=RIGHT
@@ -110,4 +111,4 @@ SUBROUTINE SolveMotion(W1,TP,OUFR,BETA,AMP,AMAS,BDMP,&
 1030 FORMAT(2ES14.6,I6,4ES14.6)
      
       RETURN        
-END SUBROUTINE SolveMotion
+END SUBROUTINE SolveMotionMulti
