@@ -125,5 +125,21 @@ module testing_utilities
     end subroutine read_matrix_with_format
 
 
+    function frobenius_norm(A) result(norm)
+        implicit none
+        real(kind=8), intent(in) :: A(:,:)
+        real :: sum, norm
+        integer :: i, j
+
+        sum = 0.0
+        do i = 1, size(A, 1)
+            do j = 1, size(A, 2)
+                sum = sum + A(i,j)**2
+            end do
+        end do
+
+        norm = sqrt(sum)
+    end function frobenius_norm 
+
 
 end module testing_utilities
