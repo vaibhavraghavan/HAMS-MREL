@@ -22,3 +22,15 @@ main = "HAMS_Prog.f90"
 # Tell fpm to build with OpenMP
 [dependencies]
 openmp = "*"
+
+# TESTER executable
+#
+# The following lines:
+#  1. Define test executable called tester.
+#  2. Tell fpm where the source files for the test executable are
+#     fpm will automatically compile all the tests in source-dir
+#  3. Tell fpm which file is the entry point (or "main file") of the tester
+[[test]]
+name = "tester"
+source-dir = "test"
+main = "tester.f90"
