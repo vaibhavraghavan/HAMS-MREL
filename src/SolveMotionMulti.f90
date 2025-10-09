@@ -1,4 +1,4 @@
-!  ------------------------------------------------------------------------------------------------------
+﻿!  ------------------------------------------------------------------------------------------------------
 !                                                               
 !    Program HAMS for the diffraction and radiation of waves 
 !    by 3D structures.
@@ -21,94 +21,124 @@
 !
 !  ------------------------------------------------------------------------------------------------------
 !---------------------------------------------------------------------------------------------
+!  BLOCK-DIAGONAL ASSEMBLY: (NBODY,6,6)  --->  (NBODY*6, NBODY*6)
+!---------------------------------------------------------------------------------------------
+SUBROUTINE LOCALTOGLOBAL(LOCALMATRIX, NBODY, GLOBALMATRIX)
+  IMPLICIT NONE
+  INTEGER, INTENT(IN)            :: NBODY
+  REAL*8,  INTENT(IN)            :: LOCALMATRIX(NBODY,6,6)
+  REAL*8,  INTENT(OUT)           :: GLOBALMATRIX(6*NBODY,6*NBODY)
+  INTEGER                        :: B, R0
+
+  ! INITIALIZE THE GLOBAL MATRIX TO ZERO
+  GLOBALMATRIX = 0.0D0
+
+  ! ASSEMBLE BLOCK-DIAGONAL GLOBAL MATRIX
+  DO B = 1, NBODY
+     R0 = (B-1)*6
+     GLOBALMATRIX(R0+1:R0+6, R0+1:R0+6) = LOCALMATRIX(B,:,:)
+  END DO
+
+END SUBROUTINE LOCALTOGLOBAL
+
+
+!---------------------------------------------------------------------------------------------
 !       Calculate the motion response in frequency domain by panel model.
 !---------------------------------------------------------------------------------------------
-!
-SUBROUTINE SolveMotionMulti(W1,TP,OUFR,BETA,AMP,AMAS,BDMP,&
+SUBROUTINE SolveMotionMulti(W1,TP,OUFR,BETA,AMP,AMAS,BDMP, &
      BLNR,BQDR,EXFC,DSPL,NBODY)
-      USE HAMS_mod
-      USE Const_mod
-      USE Body_mod
-      IMPLICIT   NONE
+  USE HAMS_mod
+  USE Const_mod
+  USE Body_mod
+  IMPLICIT NONE
 
-      INTEGER,INTENT(IN):: NBODY
-      REAL*8,INTENT(IN)::  W1,TP,OUFR,BETA,AMP
-      REAL*8,INTENT(IN):: AMAS(NBODY*6,NBODY*6),BDMP(NBODY*6,NBODY*6),BLNR(NBODY,6,6),BQDR(NBODY,6,6)
-      COMPLEX*16,INTENT(IN):: EXFC(NBODY*6)
-      COMPLEX*16,INTENT(OUT):: DSPL(NBODY*6)
-      REAL*8 DLANGE                                          
-                                                             
-      INTEGER INFO,IPV(NBODY*6),MD,MEXP,I,J                  
-                                                             
-      REAL*8 NORM,WORK(NBODY*6),RERR
-      REAL*8 MOD,PHS,REL,IMG,NREL,NIMG,NFAC
-      COMPLEX*16 LEFT(NBODY*6,NBODY*6),RIGHT(NBODY*6),VDMP(NBODY*6,NBODY*6),DSPL1(NBODY*6),DX(NBODY*6)
-!
-! ========================================================
-      ! Add the code to find the COMB of BQDR and BLNR
-      NORM=DLANGE( 'M', NBODY*6, NBODY*6, BQDR, NBODY*6, WORK )                                                                   ! Check this reference - https://www.ibm.com/docs/de/essl/6.1?topic=subroutines-slange-dlange-clange-zlange-general-matrix-norm
-      
-      !PRINT*,'NORM',NORM
-      !PAUSE
-      
-      IF (NORM.LT.1.E-6) THEN
-       LEFT=-W1**2*(MATX+AMAS)+CI*W1*(BDMP+BLNR)+CRS+KSTF ! Modify the size of BDMP and BQDR
-       RIGHT=EXFC
-       CALL ZGESV( 6, 1, LEFT, 6, IPV, RIGHT, 6, INFO )                                                           ! This is function from LAPACK. Check - https://netlib.org/lapack/explore-html/d6/d10/group__complex16_g_esolve_ga531713dfc62bc5df387b7bb486a9deeb.html
-       DSPL=RIGHT
-      ELSE
-       RERR=100.D0
-       LEFT=-W1**2*(MATX+AMAS)-CI*W1*(BDMP+BLNR)+CRS+KSTF
-       RIGHT=-IMAG(EXFC)-CI*REAL(EXFC)
-       CALL ZGESV( 6, 1, LEFT, 6, IPV, RIGHT, 6, INFO )
-       DSPL=RIGHT
-       DO WHILE (RERR.GT.1.E-6)
-        DO I=1,6
-        DO J=1,6
-         VDMP(I,J)=BQDR(I,J)*W1*ABS(DSPL(J))
-        ENDDO
-        ENDDO
-        LEFT=-W1**2*(MATX+AMAS)-CI*W1*(BDMP+BLNR+VDMP)+CRS+KSTF
-        RIGHT=EXFC
-        CALL ZGESV( 6, 1, LEFT, 6, IPV, RIGHT, 6, INFO )
-        DSPL1=RIGHT
-        DX=DSPL1-DSPL
-        RERR=0.D0
-        DO J=1,6
-         RERR=RERR+ABS(DX(J))/ABS(DSPL1(J))
-        ENDDO
-        DSPL=DSPL1  !+0.75D0*DX
-       ENDDO
-      ENDIF
-!
-!   =================================================== 
-!    Write WAMIT-style output files
-!
-      DO MD=1,6
-          
-       IF (MD.LE.3) THEN
-        MEXP=2
-       ELSEIF (MD.GE.4) THEN
-        MEXP=3
-       ENDIF
+  INTEGER,INTENT(IN) :: NBODY
+  REAL*8,INTENT(IN)  :: W1,TP,OUFR,BETA,AMP
+  REAL*8,INTENT(IN)  :: AMAS(NBODY*6,NBODY*6), BDMP(NBODY*6,NBODY*6), BLNR(NBODY,6,6), BQDR(NBODY,6,6)
+  COMPLEX*16,INTENT(IN)  :: EXFC(NBODY*6)
+  COMPLEX*16,INTENT(OUT) :: DSPL(NBODY*6)
 
-       NFAC=(RHO*G*AMP)*REFL**MEXP
-       
-       !print*,'NFAC',(RHO*G*AMP),REFL,MEXP
-       !pause
-       
-       NREL=REAL(DSPL(MD))/NFAC
-       NIMG=IMAG(DSPL(MD))/NFAC
-       MOD=SQRT(REL**2+IMG**2) !ABS(EXFC(IMD))/NFAC
-       PHS=ATAN2D(NIMG,NREL)
-       
-       IF (ABS(TP+1.D0).GT.1.E-6.AND.ABS(TP).GT.1.E-6) THEN
-        WRITE(63,1030)  OUFR,BETA*180.0D0/PI,MD,MOD,PHS,NREL,NIMG
-       ENDIF
-           
-      ENDDO
-!   =================================================== 
+  REAL*8 DLANGE
+
+  INTEGER :: INFO, MD, MEXP, I, J, NB6
+  INTEGER :: IPV(NBODY*6)
+  INTEGER :: LD, BODYID
+  REAL*8  :: BLNR_FINAL(NBODY*6,NBODY*6), BQDR_FINAL(NBODY*6,NBODY*6)
+  REAL*8  :: NORM, WORK(NBODY*6), RERR
+  REAL*8  :: MAGN, PHS, NREL, NIMG, NFAC
+  REAL*8  :: VDMP(NBODY*6,NBODY*6)                 ! real equivalent damping from quadratic term
+  COMPLEX*16 :: LEFT(NBODY*6,NBODY*6), RIGHT(NBODY*6), DSPL1(NBODY*6), DX(NBODY*6)
+
+  NB6 = NBODY*6
+
+  ! ========================================================
+  CALL LOCALTOGLOBAL(BLNR, NBODY, BLNR_FINAL)
+  CALL LOCALTOGLOBAL(BQDR, NBODY, BQDR_FINAL)
+
+  ! Norm of quadratic damping (decide whether to iterate)
+  NORM = DLANGE('M', NB6, NB6, BQDR_FINAL, NB6, WORK)
+
+  ! ---------- Linear solve (no quadratic) ----------
+  LEFT  = -W1**2*(MATX + AMAS) + CI*W1*(BDMP + BLNR_FINAL) + CRS + KSTF
+  RIGHT = EXFC
+  CALL ZGESV(NB6, 1, LEFT, NB6, IPV, RIGHT, NB6, INFO)
+  DSPL  = RIGHT
+
+  ! ---------- Iterate if quadratic term is non-negligible ----------
+  IF (NORM .GE. 1.0D-6) THEN
+     RERR = 100.0D0
+     DO WHILE (RERR .GT. 1.0D-6)
+        VDMP = 0.0D0
+        DO I = 1, NB6
+           DO J = 1, NB6
+              VDMP(I,J) = BQDR_FINAL(I,J) * W1 * ABS(DSPL(J))
+           END DO
+        END DO
+
+        LEFT  = -W1**2*(MATX + AMAS) + CI*W1*(BDMP + BLNR_FINAL + VDMP) + CRS + KSTF
+        RIGHT = EXFC
+        CALL ZGESV(NB6, 1, LEFT, NB6, IPV, RIGHT, NB6, INFO)
+        DSPL1 = RIGHT
+
+        DX = DSPL1 - DSPL
+        RERR = 0.0D0
+        DO J = 1, NB6
+           IF (ABS(DSPL1(J)) .GT. 0.0D0) RERR = RERR + ABS(DX(J))/ABS(DSPL1(J))
+        END DO
+        DSPL = DSPL1
+     END DO
+  END IF
+
+  !   =================================================== 
+  !    Write WAMIT-style output files (ALL bodies & DOFs)
+  !
+  DO MD = 1, NB6
+     ! Local DOF within the body (1..6) and body index (1..NBODY)
+     ! LD: 1=surge, 2=sway, 3=heave, 4=roll, 5=pitch, 6=yaw
+     LD     = MOD(MD-1, 6) + 1
+     BODYID = (MD-1)/6 + 1
+
+     IF (LD .LE. 3) THEN
+        MEXP = 2
+     ELSE
+        MEXP = 3
+     END IF
+
+     NFAC = (RHO*G*AMP) * REFL**MEXP
+
+     NREL = REAL(DSPL(MD)) / NFAC
+     NIMG = AIMAG(DSPL(MD)) / NFAC
+     MAGN  = SQRT(NREL*NREL + NIMG*NIMG)
+     PHS  = ATAN2D(NIMG, NREL)
+
+     IF (ABS(TP+1.0D0) .GT. 1.0D-6 .AND. ABS(TP) .GT. 1.0D-6) THEN
+        ! Writes global DOF index MD (1..NB6). If you prefer BODYID/LD, adjust here.
+        WRITE(63,1030) OUFR, BETA*180.0D0/PI, MD, MAGN, PHS, NREL, NIMG
+     END IF
+  END DO
+  !   =================================================== 
 1030 FORMAT(2ES14.6,I6,4ES14.6)
-     
-      RETURN        
+
+  RETURN
 END SUBROUTINE SolveMotionMulti
+
