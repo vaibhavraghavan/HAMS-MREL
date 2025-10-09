@@ -78,6 +78,7 @@
 		<File RelativePath=".\src\SingularIntgr.f90"/>
 		<File RelativePath=".\src\SingularIntgrMulti.f90"/>
 		<File RelativePath=".\src\SolveMotion.f90"/>
+		<File RelativePath=".\src\SolveMotionMulti.f90"/>
 		<File RelativePath=".\src\WavDynMods.f90"/>
 		<File RelativePath=".\src\WavDynSubs.f90"/></Filter></Files>
 	<Globals/></VisualStudioProject>

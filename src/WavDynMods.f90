@@ -55,7 +55,7 @@
         INTEGER,PUBLIC:: NBODY                                                       ! Number of bodies to be considered for multi-body interaction
         REAL*8,ALLOCATABLE,PUBLIC:: LCS_MULTI(:,:)                                   ! Array of location of the Local Coordinate System (LCS) along with the rotation of the LCS w.r.t the Global Coordinate System (GCS) 
         REAL*8,ALLOCATABLE,PUBLIC:: AMAS_MULTI(:,:,:,:),BDMP_MULTI(:,:,:,:),AMAS_MULTI_COMB(:,:,:),BDMP_MULTI_COMB(:,:,:)          ! Mass and damping matrix respectively
-        COMPLEX*16,ALLOCATABLE,PUBLIC:: EXFC_MULTI(:,:,:,:),DSPL_MULTI(:,:,:,:)      ! Excitation force matrix and Displacement matrix respectively
+        COMPLEX*16,ALLOCATABLE,PUBLIC:: EXFC_MULTI(:,:,:,:), EXFC_MULTI_COMB(:,:,:),DSPL_MULTI(:,:,:,:),DSPL_MULTI_COMB(:,:,:)      ! Excitation force matrix and Displacement matrix respectively
         REAL*8,ALLOCATABLE,PUBLIC:: BLNR_MULTI(:,:,:),BQDR_MULTI(:,:,:)                          ! BLNR - External linear damping matrix, BQDR - External quadratic damping matrix
         END MODULE WaveDyn_mod
 
@@ -149,7 +149,7 @@
 !
         MODULE Inerfs_mod
 !
-        INTEGER,PUBLIC:: iNELEM,iNTND,tNELEM,tNTND
+        INTEGER,PUBLIC:: iNELEM,iNTND,tNELEM,tNTND,NELEM_PE
 !     
         INTEGER,ALLOCATABLE,PUBLIC:: iNCN(:),iNCON(:,:),iNCOND(:,:)
         REAL*8,ALLOCATABLE,PUBLIC:: iXYZ(:,:),iDXYZ_P(:,:),iXYZ_P(:,:)

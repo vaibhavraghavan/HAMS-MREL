@@ -51,14 +51,14 @@ SUBROUTINE SolveMotion(W1,TP,OUFR,BETA,AMP,AMAS,BDMP,&
       !PAUSE
       
       IF (NORM.LT.1.E-6) THEN
-       LEFT=-W1**2*(MATX+AMAS)-CI*W1*(BDMP+BLNR)+CRS+KSTF
+       LEFT=-W1**2*(MATX+AMAS)+CI*W1*(BDMP+BLNR)+CRS+KSTF
        RIGHT=EXFC
        CALL ZGESV( 6, 1, LEFT, 6, IPV, RIGHT, 6, INFO )                                                           ! This is function from LAPACK. Check - https://netlib.org/lapack/explore-html/d6/d10/group__complex16_g_esolve_ga531713dfc62bc5df387b7bb486a9deeb.html
        DSPL=RIGHT
       ELSE
        RERR=100.D0
        LEFT=-W1**2*(MATX+AMAS)-CI*W1*(BDMP+BLNR)+CRS+KSTF
-       RIGHT=EXFC
+       RIGHT=-IMAG(EXFC)-CI*REAL(EXFC)
        CALL ZGESV( 6, 1, LEFT, 6, IPV, RIGHT, 6, INFO )
        DSPL=RIGHT
        DO WHILE (RERR.GT.1.E-6)
@@ -96,11 +96,9 @@ SUBROUTINE SolveMotion(W1,TP,OUFR,BETA,AMP,AMAS,BDMP,&
        !print*,'NFAC',(RHO*G*AMP),REFL,MEXP
        !pause
        
-       REL=REAL(DSPL(MD))/NFAC
-       IMG=IMAG(DSPL(MD))/NFAC
+       NREL=REAL(DSPL(MD))/NFAC
+       NIMG=IMAG(DSPL(MD))/NFAC
        MOD=SQRT(REL**2+IMG**2) !ABS(EXFC(IMD))/NFAC
-       NREL= REL
-       NIMG=-IMG
        PHS=ATAN2D(NIMG,NREL)
        
        IF (ABS(TP+1.D0).GT.1.E-6.AND.ABS(TP).GT.1.E-6) THEN
