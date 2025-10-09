@@ -185,13 +185,12 @@ module IO
         logical, intent(out) :: success
         logical :: hullexists, hydroexists, wpmexists
         integer :: i
-        character(len=1) :: istr
+        character(len=5) :: istr ! len=5 assumes <= 99999 bodies
 
         success = .true.
         wpmexists = .true.
 
         if (numbodies == 1) then
-            istr = '1'
             inquire(file=dir//"/HullMesh.pnl", exist=hullexists)
             inquire(file=dir//"/Hydrostatic.in", exist=hydroexists)
             if (irrfreq .ne. 0) then
@@ -199,11 +198,11 @@ module IO
             end if
         else if (numbodies > 1) then
             do i = 1, numbodies
-                write(istr, '(I1)') i   ! Convert i to str
-                inquire(file=dir//"/HullMesh_"//istr//".pnl", exist=hullexists)
-                inquire(file=dir//"/Hydrostatic_"//istr//".in", exist=hydroexists)
+                write(istr, '(I5)') i   ! Convert i to str
+                inquire(file=dir//"/HullMesh_"//trim(adjustl(istr))//".pnl", exist=hullexists)
+                inquire(file=dir//"/Hydrostatic_"//trim(adjustl(istr))//".in", exist=hydroexists)
                 if (irrfreq .ne. 0) then
-                    inquire(file=dir//"/WaterPlaneMesh_"//istr//".pnl", exist=wpmexists)
+                    inquire(file=dir//"/WaterPlaneMesh_"//trim(adjustl(istr))//".pnl", exist=wpmexists)
                 end if
                 if ((.not. hullexists) .or. (.not. hydroexists) .or. (.not. wpmexists)) then
                     exit
@@ -273,23 +272,13 @@ module IO
 
         ! IDs used in open statements are also used in write statements
         ! Don't modify their values or write statements will not find the files
-        if (numbodies == 1) then
-            open(61, file=dir//'/AmssDamp.1', status='UNKNOWN')
-            open(62, file=dir//'/ExcForce.3', status='UNKNOWN')
-            open(63, file=dir//'/Motion.4', status='UNKNOWN')
-            open(64, file=dir//'/PressureElevation.6p', status='UNKNOWN')
-            open(65, file=dir//'/Hydrostat.hst', status='UNKNOWN')
-        else if (numbodies > 1) then
-            open(61, file=dir//'/Buoy.1', status='UNKNOWN')
-            open(62, file=dir//'/Buoy.3', status='UNKNOWN')
-            open(63, file=dir//'/Buoy.4', status='UNKNOWN')
-            open(64, file=dir//'/Buoy_Diffraction.6p', status='UNKNOWN')
-            open(65, file=dir//'/Buoy.hst', status='UNKNOWN')
-            open(66, file=dir//'/Buoy_Incidence.6p', status='UNKNOWN')
-            do i = 1, numbodies
-                write(istr, '(I5)') i
-                open(210+i, file=dir//'/Buoy_Radiation_'//trim(adjustl(istr))//'.6p', status='UNKNOWN') 
-            end do
+        open(61, file=dir//'/AmssDamp.1', status='UNKNOWN')
+        open(62, file=dir//'/ExcForce.3', status='UNKNOWN')
+        open(63, file=dir//'/Motion.4', status='UNKNOWN')
+        open(64, file=dir//'/PressureElevation.6p', status='UNKNOWN')
+        open(65, file=dir//'/Hydrostat.hst', status='UNKNOWN')
+        if (numbodies > 1) then
+            open(66, file=dir//'/PressureElevationIncidence.6p', status='UNKNOWN')
         end if
     end subroutine CreateWamitFiles
 

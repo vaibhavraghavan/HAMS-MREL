@@ -350,19 +350,25 @@ CONTAINS
       INTEGER IPT,MD,ND,EMD,IHD,FILE_NUMBER,NELEM_START,NELEM_END,NELEM_GLOBAL
       REAL*8 XP(3)
       COMPLEX*16 VCP
-      COMPLEX*16,ALLOCATABLE:: VCPX(:,:)
+      COMPLEX*16 :: VCPX(6)
       INTEGER,ALLOCATABLE:: FACTOR_NORMAL(:)
+      CHARACTER(LEN=30) :: fmt_string
       
       ALLOCATE(FACTOR_NORMAL(NELEM_PE))
-      NELEM_GLOBAL=0
       
+      DO IPT=1,NFP
+            XP=XFP(IPT,:)
+            NELEM_GLOBAL=0
+            write(NFILE, '(ES14.6,I10)', ADVANCE='NO') OUFR, IPT
       DO FILE_NUMBER = 1,NBODY
-        ALLOCATE(VCPX(NFP,6))
+        VCPX = (0.0D0, 0.0D0)
         FACTOR_NORMAL = 0
+        fmt_string = '(24X, 12ES14.6)'
         IF (FILE_NUMBER.EQ.1) THEN
          NELEM_START = 1
          NELEM_END = NELEM_MULTI(FILE_NUMBER)
          FACTOR_NORMAL(NELEM_START:NELEM_END) = 1
+         fmt_string = '(12ES14.6)'
         ELSEIF (FILE_NUMBER.EQ.NBODY) THEN
          NELEM_START = NELEM_PE-NELEM_MULTI(FILE_NUMBER)+1
          NELEM_END = NELEM_PE
@@ -374,15 +380,13 @@ CONTAINS
         ENDIF
         NELEM_GLOBAL=NELEM_GLOBAL+NELEM_MULTI(FILE_NUMBER)
     
-       DO IPT=1,NFP
-        XP=XFP(IPT,:)
           DO MD=1,6
            IF (ABS(XP(3)).GT.1.E-6) THEN
             CALL CalPressureMulti(XP,'Radiation',MD,VCP,NBODY,FILE_NUMBER,FACTOR_NORMAL)
-            CALL WamitNondimensMulti(VCP,'Pressure','Radiation',MD,VCPX(IPT,MD)) ! Check this after fixing the potential function
+            CALL WamitNondimensMulti(VCP,'Pressure','Radiation',MD,VCPX(MD)) ! Check this after fixing the potential function
            ELSE
             CALL CalElevationMulti(XP,'Radiation',MD,VCP,NBODY,FILE_NUMBER,FACTOR_NORMAL)
-            CALL WamitNondimensMulti(VCP,'Elevation','Radiation',MD,VCPX(IPT,MD))
+            CALL WamitNondimensMulti(VCP,'Elevation','Radiation',MD,VCPX(MD))
            ENDIF
       
 !   ===================================================
@@ -390,14 +394,10 @@ CONTAINS
 !   
       
           ENDDO
-          WRITE(NFILE+FILE_NUMBER,1000) OUFR,IPT,(VCPX(IPT,ND),ND=1,6)
-      
+          write(NFILE, FMT=fmt_string) VCPX
        ENDDO
-       DEALLOCATE(VCPX)
       ENDDO
       
-1000  FORMAT(ES14.6,I10,12ES14.6)
-      RETURN
       END SUBROUTINE OutputPressureElevation_RadiationMulti
       
 ! -----------------------------------------------------------
@@ -408,7 +408,7 @@ CONTAINS
 !
       INTEGER,INTENT(IN):: NFILE,NBODY
       INTEGER IPT,MD,EMD,IHD
-      REAL*8 XP(3),REL,IMG,MOD,PHS
+      REAL*8 XP(3)
       COMPLEX*16 VCP,NVCP
       INTEGER,ALLOCATABLE:: FACTOR_NORMAL(:)
       
@@ -424,17 +424,12 @@ CONTAINS
         CALL CalElevationMulti(XP,'Diffraction',6*NBODY+1,VCP,NBODY,0,FACTOR_NORMAL)
         CALL WamitNondimensMulti(VCP,'Elevation','Diffraction',0,NVCP)
        ENDIF
-       
-       !WRITE(NFILE,1020) OUFR,BETA*180.0D0/PI,IPT,NVCP
-       REL=REAL(NVCP)
-       IMG=IMAG(NVCP)
-       MOD=ABS(NVCP)
-       PHS=ATAN2D(IMG,REL)
-       WRITE(NFILE,1020) OUFR,BETA*180.0D0/PI,IPT,MOD,PHS,REL,IMG
+
+       WRITE(NFILE,1020) OUFR, BETA*180.0D0/PI, IPT, NVCP
        
       ENDDO
       
-1020  FORMAT(2ES14.6,I10,4ES14.6)
+1020  FORMAT(2ES14.6,I10,2ES14.6)
       RETURN
       END SUBROUTINE OutputPressureElevation_DiffractionMulti
       
