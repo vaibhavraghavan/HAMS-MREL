@@ -6,10 +6,7 @@ program tester
     use testdrive_version, only : get_testdrive_version
 
     ! Tests imports (add only collect functions)
-    !use test_output_hams_format, only : collect_testsuite_output_hams_format
-    use test_integration_config1, only : collect_tests_integration_config1
     use test_suite2, only : collect_suite2
-    use testing_utilities
 
     implicit none
     integer :: stat, is
@@ -26,8 +23,6 @@ program tester
 
     ! Specify the tests that need to be run
     testsuites = [ &
-        !new_testsuite("test_output_hams_format", collect_testsuite_output_hams_format), &
-        new_testsuite("test_integration_config1", collect_tests_integration_config1), &
         new_testsuite("suite2", collect_suite2) &
     ]
 

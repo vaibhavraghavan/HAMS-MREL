@@ -23,14 +23,17 @@ main = "HAMS_Prog.f90"
 [dependencies]
 openmp = "*"
 
-# TESTER executable
-#
-# The following lines:
-#  1. Define test executable called tester.
-#  2. Tell fpm where the source files for the test executable are
-#     fpm will automatically compile all the tests in source-dir
-#  3. Tell fpm which file is the entry point (or "main file") of the tester
+# We define two test executables, one for unit tests and another for integration tests
+# This is so we can run both types of tests separately.
 [[test]]
-name = "tester"
+name = "integration-tester"
 source-dir = "test"
-main = "tester.f90"
+main = "integration_tester.f90"
+
+[[test]]
+name = "unit-tester"
+source-dir = "test"
+main = "unit_tester.f90"
+
+[test.dependencies]
+test-drive = { git = "https://github.com/fortran-lang/test-drive"}

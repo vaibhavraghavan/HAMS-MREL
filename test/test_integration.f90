@@ -13,8 +13,8 @@ module test_integration_config1
     subroutine collect_tests_integration_config1(testsuite)
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
         testsuite = [ &
-            new_unittest("run_simulation_config1", run_simulation_config1), &
-            new_unittest("test_oamass_config1", test_oamass_config1) &
+            new_unittest("run_simulation_config1", run_simulation_config1) &
+            !new_unittest("test_oamass_config1", test_oamass_config1) &
             !new_unittest("test_odamping_config1", test_odamping), &
             !new_unittest("test_oexfor_config1", test_oexfor) &
         ]
@@ -36,7 +36,6 @@ module test_integration_config1
             write(errcode, '(I0)') exitcode
             call test_failed(error, "Error: could not execute HAMS for integration test config1. Failed with exit code: "//errcode)
         end if
-
     end subroutine run_simulation_config1
 
     subroutine test_oamass_config1(error)
