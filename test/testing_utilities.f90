@@ -1,10 +1,12 @@
 module testing_utilities
 
+    use testdrive, only : error_type, check
+
     implicit none
 
     public :: get_running_exe_path
     public :: get_repo_root_path
-    public :: read_matrix_with_format
+    public:: test_oamass_files_are_equal
 
     ! Path to HAMS suppied by the user
     public :: hamsexe_path
@@ -63,6 +65,7 @@ module testing_utilities
         end do
         exepath = trim(fullpath(1:i-1))//'/'
     end function get_running_exe_path
+
 
     function get_repo_root_path() result(reporootpath)
         implicit none
@@ -141,5 +144,27 @@ module testing_utilities
         norm = sqrt(sum)
     end function frobenius_norm 
 
+
+    subroutine test_oamass_files_are_equal(fileA, fileB, tolerance, error)
+        implicit none
+        character(len=*), intent(in) :: fileA, fileB
+        real(kind=8), intent(in) :: tolerance
+        type(error_type), allocatable, intent(out) :: error
+        real(kind=8), allocatable :: A(:,:), B(:,:)
+
+        ! Load data into matrices
+        call read_matrix_with_format(fileA, '(F7.3,1X,F7.3,1X,6E14.5)', 8, A)
+        call read_matrix_with_format(fileB, '(F7.3,1X,F7.3,1X,6E14.5)', 8, B)
+
+        ! Check sizes
+        call check(error, size(A,1) == size(B,1))
+        if (allocated(error)) return
+        call check(error, size(A,2) == size(B,2))
+        if (allocated(error)) return
+
+        ! Check frobenius norm of matrices
+        call check(error, frobenius_norm(A - B) < tolerance)
+        if (allocated(error)) return
+    end subroutine test_oamass_files_are_equal
 
 end module testing_utilities

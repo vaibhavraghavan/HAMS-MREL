@@ -8,6 +8,13 @@
 name = "HAMS-MREL"
 version = "0.0.0"
 
+# The automatic discovery recursively searches the app, example, and test directories 
+# for program definitions and declares them as executable, example, and test targets, respectively.
+[build]
+auto-executables = false
+auto-examples = false
+auto-tests = false
+
 # Define an executable called hamsmrel.
 [[executable]]
 name = "hamsmrel"
@@ -27,12 +34,10 @@ openmp = "*"
 # This is so we can run both types of tests separately.
 [[test]]
 name = "integration-tester"
-source-dir = "test"
 main = "integration_tester.f90"
 
 [[test]]
 name = "unit-tester"
-source-dir = "test"
 main = "unit_tester.f90"
 
 [test.dependencies]

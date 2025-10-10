@@ -1,4 +1,4 @@
-program tester
+program unit_tester
   
     ! Testing framework imports
     use, intrinsic :: iso_fortran_env, only : error_unit
@@ -18,9 +18,6 @@ program tester
     call get_testdrive_version(major, minor, patch, version_string)
     print *, "Test-Drive version: ", version_string
 
-    ! Collect path to HAMS executable from command line arg. Needed for integration tests
-    call  get_hams_path_from_command_line_args()
-
     ! Specify the tests that need to be run
     testsuites = [ &
         new_testsuite("suite2", collect_suite2) &
@@ -38,4 +35,4 @@ program tester
         error stop
     end if
 
-end program tester
+end program unit_tester
