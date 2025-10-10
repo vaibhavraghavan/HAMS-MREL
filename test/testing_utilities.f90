@@ -94,14 +94,14 @@ module testing_utilities
         integer, parameter :: maxrows = 10000
         real(kind=8), allocatable :: temp(:,:)
         real(kind=8) :: row(ncol)
-        integer :: ios, nrows
+        integer :: ios, nrows, unit
 
         ! Allocate temporary array
         allocate(temp(maxrows, ncol))
         nrows = 0
 
         ! Open file
-        open(10, file=filename, status='old', action='read', iostat=ios)
+        open(newunit=unit, file=filename, status='old', action='read', iostat=ios)
         if (ios /= 0) then
             print *, "Error opening file:", trim(filename), "iostat=", ios
             stop 1
@@ -109,7 +109,7 @@ module testing_utilities
 
         ! Read file line by line into temporary array
         do
-            read(10, formatstr, iostat=ios) row
+            read(unit, formatstr, iostat=ios) row
             if (ios /= 0) exit  ! Reached end-of-file
             nrows = nrows + 1
             if (nrows > maxrows) then
@@ -119,7 +119,7 @@ module testing_utilities
             temp(nrows,1:ncol) = row
         end do
 
-        close(10)
+        close(unit)
 
         ! Allocate exact-size array and copy data
         allocate(A(nrows,ncol))
