@@ -63,7 +63,7 @@ SUBROUTINE SolveMotionMulti(W1,TP,OUFR,BETA,AMP,AMAS,BDMP, &
   INTEGER :: INFO, MD, MEXP, I, J, NB6
   INTEGER :: IPV(NBODY*6)
   INTEGER :: LD, BODYID
-  REAL*8  :: BLNR_FINAL(NBODY*6,NBODY*6), BQDR_FINAL(NBODY*6,NBODY*6)
+  REAL*8  :: BLNR_FINAL(NBODY*6,NBODY*6), BQDR_FINAL(NBODY*6,NBODY*6),MATX_FINAL(NBODY*6,NBODY*6),CRS_FINAL(NBODY*6,NBODY*6),KSTF_FINAL(NBODY*6,NBODY*6)
   REAL*8  :: NORM, WORK(NBODY*6), RERR
   REAL*8  :: MAGN, PHS, NREL, NIMG, NFAC
   REAL*8  :: VDMP(NBODY*6,NBODY*6)                 ! real equivalent damping from quadratic term
@@ -74,13 +74,16 @@ SUBROUTINE SolveMotionMulti(W1,TP,OUFR,BETA,AMP,AMAS,BDMP, &
   ! ========================================================
   CALL LOCALTOGLOBAL(BLNR, NBODY, BLNR_FINAL)
   CALL LOCALTOGLOBAL(BQDR, NBODY, BQDR_FINAL)
-
+  CALL LOCALTOGLOBAL(MATX_MULTI, NBODY, MATX_FINAL)
+  CALL LOCALTOGLOBAL(CRS_MULTI, NBODY, CRS_FINAL)
+  CALL LOCALTOGLOBAL(KSTF_MULTI, NBODY, KSTF_FINAL)
+  
   ! Norm of quadratic damping (decide whether to iterate)
   NORM = DLANGE('M', NB6, NB6, BQDR_FINAL, NB6, WORK)
 
   ! ---------- Linear solve (no quadratic) ----------
-  LEFT  = -W1**2*(MATX + AMAS) + CI*W1*(BDMP + BLNR_FINAL) + CRS + KSTF
-  RIGHT = EXFC
+  LEFT  = -W1**2*(MATX_FINAL + AMAS) + CI*W1*(BDMP + BLNR_FINAL) + CRS_FINAL + KSTF_FINAL
+  RIGHT = -IMAG(EXFC)-CI*REAL(EXFC)
   CALL ZGESV(NB6, 1, LEFT, NB6, IPV, RIGHT, NB6, INFO)
   DSPL  = RIGHT
 
@@ -95,8 +98,8 @@ SUBROUTINE SolveMotionMulti(W1,TP,OUFR,BETA,AMP,AMAS,BDMP, &
            END DO
         END DO
 
-        LEFT  = -W1**2*(MATX + AMAS) + CI*W1*(BDMP + BLNR_FINAL + VDMP) + CRS + KSTF
-        RIGHT = EXFC
+        LEFT  = -W1**2*(MATX_FINAL + AMAS) + CI*W1*(BDMP + BLNR_FINAL + VDMP) + CRS_FINAL + KSTF_FINAL
+        RIGHT = -IMAG(EXFC)-CI*REAL(EXFC)
         CALL ZGESV(NB6, 1, LEFT, NB6, IPV, RIGHT, NB6, INFO)
         DSPL1 = RIGHT
 
@@ -118,27 +121,32 @@ SUBROUTINE SolveMotionMulti(W1,TP,OUFR,BETA,AMP,AMAS,BDMP, &
      LD     = MOD(MD-1, 6) + 1
      BODYID = (MD-1)/6 + 1
 
+     ! Determine exponent for normalization
      IF (LD .LE. 3) THEN
-        MEXP = 2
+        MEXP = 2  ! Translational DOFs: normalize by AMP/REFL^2
      ELSE
-        MEXP = 3
+        MEXP = 3  ! Rotational DOFs: normalize by AMP/REFL^3
      END IF
 
-     NFAC = (RHO*G*AMP) * REFL**MEXP
+     NFAC = (AMP) / REFL**MEXP
 
      NREL = REAL(DSPL(MD)) / NFAC
-     NIMG = AIMAG(DSPL(MD)) / NFAC
-     MAGN  = SQRT(NREL*NREL + NIMG*NIMG)
+     NIMG = IMAG(DSPL(MD)) / NFAC
+     MAGN = SQRT(NREL**2 + NIMG**2)
      PHS  = ATAN2D(NIMG, NREL)
 
      IF (ABS(TP+1.0D0) .GT. 1.0D-6 .AND. ABS(TP) .GT. 1.0D-6) THEN
-        ! Writes global DOF index MD (1..NB6). If you prefer BODYID/LD, adjust here.
+        ! OPTION 1: Write global DOF index (current implementation)
         WRITE(63,1030) OUFR, BETA*180.0D0/PI, MD, MAGN, PHS, NREL, NIMG
+        
+        ! OPTION 2: Write BODYID and local DOF (uncomment if preferred)
+        ! This format: freq, direction, body_id, local_dof, magnitude, phase, real, imag
+        ! WRITE(63,1031) OUFR, BETA*180.0D0/PI, BODYID, LD, MAGN, PHS, NREL, NIMG
      END IF
   END DO
   !   =================================================== 
 1030 FORMAT(2ES14.6,I6,4ES14.6)
+1031 FORMAT(2ES14.6,2I6,4ES14.6)
 
   RETURN
 END SUBROUTINE SolveMotionMulti
-
