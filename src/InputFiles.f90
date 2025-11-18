@@ -33,6 +33,10 @@ module IO
     public :: ReadControlFile
     public :: VerifyInputFilesExist
     public :: CreateOutputFiles
+    public :: CreateErrorCheckFile
+
+    ! Specify if WK1 and DWK were intialized (for ErrorCheck.txt)
+    logical, private :: allocated_WK1_and_DWK
 
     contains
 
@@ -88,10 +92,12 @@ module IO
         end if
         
         if (NPET > 0) then
+            allocated_WK1_and_DWK = .false.
             NPER = IFS+NPET
             allocate(WVNB(NPER))
             read(1,*) (WVNB(I), I = IFS+1, NPER)
         else if (NPET < 0) then
+            allocated_WK1_and_DWK = .true.
             NPET = ABS(NPET)
             NPER = IFS+NPET
             allocate(WVNB(NPER))
@@ -191,6 +197,7 @@ module IO
         wpmexists = .true.
 
         if (numbodies == 1) then
+            istr = '1'
             inquire(file=dir//"/HullMesh.pnl", exist=hullexists)
             inquire(file=dir//"/Hydrostatic.in", exist=hydroexists)
             if (irrfreq .ne. 0) then
@@ -312,8 +319,10 @@ module IO
             end do
     end subroutine CreateHydrostarFiles
 
-    subroutine CreateRotationCenterFile(dir, numbodies)
-        use Body_mod, only : XR, XR_MULTI
+    subroutine CreateErrorCheckFile(dir, numbodies)
+        use Body_mod, only : XR, XR_MULTI, XG, XG_MULTI     ! WavDynMods.f90
+        use HAMS_mod, only : WK1, DWK                   ! WavDynMods.f90
+        use WaveDyn_mod, only : H                       ! WavDynMods.f90
 
         implicit none
         character(len=*), intent(in) :: dir
@@ -322,19 +331,33 @@ module IO
 
         open(9, file=dir//'/ErrorCheck.txt', status="UNKNOWN", action="WRITE")
 
+        write(9,*) "Water depth: ", H, new_line('a')
+
+        if (allocated_WK1_and_DWK .eqv. .true.) then
+            write(9,*) "Starting Frequency: ", WK1, new_line('a')
+            write(9,*) "Spacing Between Frequencies: ", DWK, new_line('a')
+        end if
+
         if(numbodies == 1) then
             write(9,*) "The rotation center is input as (please confirm if it is correct):"
             write(9,'(3f12.3)') (XR(i), i=1,3)
+            write(9,*)
+            write(9,*) "The center of gravity is input as (please confirm if it is correct):"
+            write(9,'(3f12.3)') (XG(i), i=1,3)
         else
             write(9,*) "The rotation center for the bodies are input as (please confirm if it is correct):"
             do i = 1, numbodies
                 write(9,'(3f12.3)') (XR_MULTI(i,j), j=1,3)
             end do
+            write(9,*) "The center of gravity per body is input as (please confirm if it is correct):"
+            do i = 1, numbodies
+                write(9,'(3f12.3)') (XG_MULTI(i,j), j=1,3)
+            end do
         end if
 
         close(9)
 
-    end subroutine CreateRotationCenterFile
+    end subroutine CreateErrorCheckFile
 
     ! Create output files and directories
     subroutine CreateOutputFiles(outputdir, numbodies, success)
@@ -364,8 +387,6 @@ module IO
         if (numbodies == 1) then
             call CreateHydrostarFiles(outputdir // "/Hydrostar_format")
         end if
-
-        call CreateRotationCenterFile(outputdir, numbodies)
         
     end subroutine CreateOutputFiles
 

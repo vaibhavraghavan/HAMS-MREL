@@ -237,6 +237,8 @@ program HAMS_MREL
         CALL Initialisation
      
         CALL ReadHydroStatic
+
+        call CreateErrorCheckFile(trim(outputdir), NBODY)
        
         CALL CalNormals(IRSP)
 
@@ -559,6 +561,10 @@ program HAMS_MREL
             CALL CalNormalsMulti(FILE_M,IRSP)                                                      ! This is implemented for no removal of irregular frequencies at this point
         ENDDO
        
+
+        call CreateErrorCheckFile(trim(outputdir), NBODY)
+
+
         PRINT *,' Calculating panel normals is finished for all multi-bodies.'
         PRINT *
 
