@@ -2,7 +2,7 @@
 
 HAMS-MREL (Hydrodynamic Analysis of Marine Structures – Marine Renewable Energies Lab) is an open-source numerical tool for studying wave–structure interactions involving multiple floating bodies. It uses a Boundary Integral Equation Method to compute hydrodynamic coefficients, wave excitation forces, and related quantities for diffraction and radiation problems. The software includes OpenMP-based parallelization to improve computational efficiency and has been validated against WAMIT for a range of multi-body test cases.
 
-HAMS-MREL is developed as an extension of the original HAMS solver. While HAMS focuses on single-body hydrodynamic analysis, HAMS-MREL expands the framework to handle interactions among multiple bodies.
+HAMS-MREL is developed as an extension of the original [HAMS solver](https://github.com/YingyiLiu/HAMS). While HAMS focuses on single-body hydrodynamic analysis, HAMS-MREL expands the framework to handle interactions among multiple bodies.
 
 
 ## Usage
@@ -55,28 +55,7 @@ The program will check that all required files exist before running. If any file
 
 ### Output
 
-HAMS-MREL produces output files in multiple established formats to support post-processing and compatibility with external tools. It is not possible to select which formats are generated. HAMS-MREL always produces the full set of output files in all supported formats.
-
-**HAMS format**
-
-The following files are created for both single and multi-body cases. These files contain added-mass, radiation-damping, and excitation-force data, respectively. For each quantity, six files are generated, one for each of the six degrees of freedom:
-  - ```OAMASS<1-6>.txt```
-  - ```ODAMPING<1-6>.txt```
-  - ```OEXFOR<1-6>.txt```
-
-**WAMIT format**
-
-For both single and multi-body cases, the following files are created:
-- ```AmssDamp.1```
-- ```ExcForce.3```
-- ```Motion.4```
-- ```PressureElevation.6p```
-- ```PressureElevationIncidence.6p```
-- ```Hydrostat.hst```
-
-**Hydrostar format (single-body cases only)**
-
-An ```ErrorCheck.txt``` file is also generated. This file contains system information such as water depth, the frequency range (start frequency and spacing), and the center of gravity and rotation centers for each body.
+HAMS-MREL produces output files in multiple established formats to support post-processing and compatibility with external tools. Every simulation outputs data in the HAMS and WAMIT formats (plus Hydrostar for single-body cases), covering added mass, damping, excitation forces, motions, pressure/elevation, and hydrostatics, along with an _ErrorCheck.txt_ file summarizing key system parameters. Output formats are fixed and always generated. **A full description of each file is provided in [docs/output_files.md](docs/output_files.md)**.
 
 ## Citation
 
