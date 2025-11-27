@@ -1,6 +1,10 @@
 # Development Documentation
 
-This page contains information for the developers and mantainers of HAMS-MREL. It includes information on the tests, Continous Integration (CI) workflow in GitHub Actions and results of a memory profiling that identifies which variables consume the most memory.
+This page contains information for the developers and mantainers of HAMS-MREL:
+
+- [Tests](https://github.com/vaibhavraghavan/HAMS-MREL-DCC/edit/develop/docs/developer_documentation.md#tests)
+- [Continous Integration](https://github.com/vaibhavraghavan/HAMS-MREL-DCC/edit/develop/docs/developer_documentation.md#continous-integration-in-github-actions)
+- [Profiling Results](https://github.com/vaibhavraghavan/HAMS-MREL-DCC/edit/develop/docs/developer_documentation.md#profiling-results)
 
 ## Tests
 
@@ -34,6 +38,7 @@ fpm test --target integration-tester -- install/bin/hamsmrel
 
 After executing these commands you should see the following output (or similar):
 
+<img width="557" height="280" alt="hams-tests" src="https://github.com/user-attachments/assets/1bb39a74-593d-498b-8a6d-40f20fcc36f9" />
 
 ## Continous Integration in GitHub Actions
 
@@ -42,16 +47,18 @@ The project has [Continuous Integration (CI)](https://www.software.ac.uk/guide/h
 There are two workflows: one for Windows and another for Linux. Both run independently of each other and results can be seen in the [Actions tab](https://github.com/vaibhavraghavan/HAMS-MREL-DCC/actions) of the GitHub repository. The workflows are automatically triggered whenever a new commit is pushed to the repository (main or develop branch) or a pull request is opened. Running the workflows when a pull request is opened helps us verify that the changes that will be integrated compile correctly and don't cause tests to fail.
 
 Both workflows define a single job each: *Build and Test*. The job:
-    - Configures the GitHub runner (server) where the workflow is executed. This means installing the Intel compilers and Intel OneAPI Math Kernel Library, Fortran Package Manager and Test-Drive framework.
-    - Compiles HAMS-MREL
-    - Runs the tests
+- Configures the GitHub runner (server) where the workflow is executed. This means installing the Intel compilers and Intel OneAPI Math Kernel Library, Fortran Package Manager and Test-Drive framework.
+- Compiles HAMS-MREL
+- Runs the tests
 
 To simplify the installation of the dependencies mentioned above, we use Actions from the [GitHub Actions marketplace](https://github.com/marketplace?type=actions). Actions can be thought of as mini-apps, extensions or plugins that do one thing specifically. In this case, the Actions install different software on the GitHub Actions runners. The following Actions are used:
 - [setup-fortran](https://github.com/marketplace/actions/setup-fortran): install the Fortran Intel compiler and Intel OneAPI Math Kernel Library (Linux only)
   Although the setup-fortran action can install the Intel Fortran compiler on both Windows and Linux, installation of the oneMKL library is only available for Linux systems. Intel dependencies are manually installed on the Windows runner.
 - [setup-fpm](https://github.com/marketplace/actions/setup-fpm): install the Fortran Package Manager
 
-The configuration for the Windows workflow is defined in [../.github/build_and_test_windows.yml](../.github/build_and_test_windows.yml) and the one for Linux in [../.github/build_and_test_linux.yml](../.github/build_and_test_linux.yml).
+**The Windows workflow configuration is defined in [build_and_test_windows.yml](../.github/build_and_test_windows.yml).**
+
+**The configuration for Linux is in [build_and_test_linux.yml](../.github/build_and_test_linux.yml).**
 
 ### About GitHub Actions
 
