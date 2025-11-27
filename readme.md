@@ -39,23 +39,18 @@ hams-mrel.exe <path-to-input-dir> <path-to-output-dir>
 
 ## Input and Output Files
 
-> [!IMPORTANT]
-Detailed descriptions of each input file are provided in the project Wiki.
-
 ### Input
 
-HAMS-MREL requires a set of input files to run. The exact files depend on whether you are analyzing a single body or multiple bodies:
-- `HullMesh[_i].pnl`
-- `Hydrostatic[_i].in`
-- `WaterPlaneMesh[_i].pnl` (only if analyzing irregular frequencies)
+HAMS-MREL requires a set of input files to run. These files contain the general setting for the simulation (`ControlFile.in`), hydrostatic data (`Hydrostatic[_i].in`) and meshes for the submerged bodies (`HullMesh[_i].pnl`) and inner water plane for each body (`WaterPlaneMesh[_i].pnl`). The exact number of files depends on the number of bodies and on whether irregular frequencies are analyzed.  
 
-For multi-body cases, `_i` denotes the body number (`i = 1 … numbodies`). For a single body, no index is used (`HullMesh.pnl`, `Hydrostatic.in` and `WaterPlaneMesh.pnl`).
+**A full description of each inout file is provided in [docs/input_files.md](docs/input_files.md)**.
 
-The program will check that all required files exist before running. If any file is missing, execution will stop.
 
 ### Output
 
-HAMS-MREL produces output files in multiple established formats to support post-processing and compatibility with external tools. Every simulation outputs data in the HAMS and WAMIT formats (plus Hydrostar for single-body cases), covering added mass, damping, excitation forces, motions, pressure/elevation, and hydrostatics, along with an _ErrorCheck.txt_ file summarizing key system parameters. Output formats are fixed and always generated. **A full description of each file is provided in [docs/output_files.md](docs/output_files.md)**.
+HAMS-MREL produces output files in multiple established formats to support post-processing and compatibility with external tools. Every simulation outputs data in the HAMS and WAMIT formats (plus Hydrostar for single-body cases), covering added mass, damping, excitation forces, motions, pressure/elevation, and hydrostatics, along with an _ErrorCheck.txt_ file summarizing key system parameters. Output formats are fixed and always generated.
+
+**A full description of each file is provided in [docs/output_files.md](docs/output_files.md)**.
 
 ## Citation
 
