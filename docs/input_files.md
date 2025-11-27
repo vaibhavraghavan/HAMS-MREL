@@ -10,6 +10,12 @@ For multi-body cases, `_i` denotes the body number (`i = 1 … numberofbodies`).
 
 The program will check that all required files exist before running. If any file is missing, execution will stop.
 
+**Mesh Files**
+
+As described by the [HAMS user manual](https://github.com/YingyiLiu/HAMS/blob/master/Manual/A%20brief%20manual.pdf), to obtain a meshes in a HAMS-compatible format, you can start by exporting the hydrodynamic CAD model from Rhinoceros to WAMIT’s *.gdf format. Next, use the built-in tool WAMIT_MeshTran.exe to convert the *.gdf mesh into the HAMS mesh format. To do this, run RunWAMIT_MeshTran.bat and enter the filename of the *.gdf file when prompted. Ensure that the *.gdf file includes meshes for both the waterplane and the submerged bodies. The tool will automatically separate them into two files: WaterplaneMesh.pnl and HullMesh.pnl. Note that the WAMIT_MeshTran tool is currently only available on Windows.
+
+**Fortran Format Descriptors**
+
 HAMS-MREL uses Fortran format descriptors to read values from the file. These are indicated in the Format column in the tables below:
 - `x`: skip spaces. For example, `14x` means skip 14 characters.
 - `iN`: integer with width N. Example: `i16` reads a 16-character wide integer.
@@ -131,32 +137,23 @@ The files are read in [HAMS_Prog.f90](../src/HAMS_Prog.f90) and in the subroutin
 
 A few notes:
 - Numbers in each line can be separated by whitespaces but **not commas**.
-- Any trailing text must be preceded by `!`.
-- The number of vertex indices must match `NVERT` exactly.
-
-**Header and Global Parameters**
+- Any trailing text on each line must be preceded by `!`.
+- The number of vertex indices must match `NTND` exactly.
 
 | Line(s) | Format | Variable | Description |
 | :------ | :------ | :-------- | :----------- |
 | 1–3 | free | — | Comment or blank lines (ignored) |
 | 4 | free | `NELEM, NTND, ISX, ISY` | Number of panels, number of nodes, X-symmetry flag, Y-symmetry flag |
-
-**Node Coordinates**
-
-| Line(s) | Format | Variable | Description |
-| :------ | :------ | :-------- | :----------- |
 | 5-6 | free | — | Comment or blank lines (ignored) |
-| next `NTND` | free | `XYZ_LOCAL_MULTI(BODY_N,IND,1:3)` | Node coordinates. Each line contains: `node_ID  x_local  y_local  z_local` |
-
-**Node Relations**
-
-| Line(s) | Format | Variable | Description |
-| :------ | :------ | :-------- | :----------- |
+| next `NTND` | free | `M` and `XYZ_LOCAL_MULTI(bodyID,nodeID,1:3)` | Node coordinates. Each line contains: `node_ID  x_local  y_local  z_local` |
 | next 3 lines | free | — | Comment or blank (ignored) |
-| next `NTND` lines | free | `M`, `NCN_MULTI(BODY_N,IEL)` and `NCON_MULTI(BODY_N,IEL,1:numvertices)`| Panel definitions. Each line contains: panel number, number of vertices, (vertex1, vertex2, ...)
-
+| next `NTND` lines | free | `M`, `NCN_MULTI(bodyID,nodeID)` and `NCON_MULTI(bodyID,nodeID,1:numvertices)`| Panel definitions. Each line contains: panel number, number of vertices and (vertex1, vertex2, ...)
 
 
 ## WaterPlaneMesh.pnl
 
-Read in [HAMS_Prog.f90](../src/HAMS_Prog.f90).
+Node and element data on the inner water plane for multiple bodies are specified in the `WaterPlaneMesh[_i].pnl` files. There is one file per body.
+
+The files are read in [HAMS_Prog.f90](../src/HAMS_Prog.f90) and in the subroutine [ReadWTPLMeshMulti](../src/ReadPanelMeshMulti.f90). The file structure is exactly the same as the one for the HullMesh.pnl files, which is described above.
+
+The node coordinates of the waterplane mesh are stored in `iXYZ_LOCAL_MULTI(bodyID,nodeID,1:3)`. The number of vertices in each panel is stored in `iNCN_MULTI(bodyID,nodeID)` and the vertices (vertex1, vertex2, ...) are stored in `iNCON_MULTI(bodyID,nodeID,1:numvertices)`.
