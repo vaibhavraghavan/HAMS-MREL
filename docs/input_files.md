@@ -39,7 +39,7 @@ The general settings of the simulation are specified in `ControlFile.in`. The fi
 | 3 | `14x,f30.15` | `H` | Water depth (m). <0 for infinite depth, >0 for finite depth |
 | 4 | free | - | Comment or blank line |
 | 5 | free | - | Comment or blank line |
-| 6 | `27x,i16` | `SYB0` | Switch: 0 or 1  |
+| 6 | `27x,i16` | `SYB0` | Switch: 0 or 1. 1 to include zero and infinite frequency added mass calculations; 0 to exclude them.  |
 | 7 | `25x,i16` | `INFT` | Input frequency type: 1 for deepwater wave number, 2 for finite depth wave number, 3 for wave frequency, 4 for wave period and 5 for wave length. 25 spaces before the integer |
 | 8 | `25x,i17` | `OUFT` | Output frequency type; same options as input frequency type |
 | 9 | `26x,i16` | `NPET` | Number of frequencies |
@@ -57,11 +57,11 @@ As shown in the table below, the first two lines after the last value from the p
 | next | free | - | Comment or blank line (ignored) |
 | next | `A100` | `BODY_CHECK` | String indicating whether multiple bodies are used. Include `"multi"` if multiple bodies. |
 | if `BODY_CHECK` contains "multi": | `24x,i16` | `NBODY` | Number of bodies; must be ≥1 |
-| next `NBODY` lines | `26x,4f12.3` |`LCS_MULTI` | origin coordinates of the LCS per mesh
+| next `NBODY` lines | `26x,4f12.3` |`LCS_MULTI` | origin coordinates of the local coordinate system (LCS), per body mesh
 
 **Wave Headings**
 
-Wave incident angles with respect to the x-direction.
+Wave incident angles with respect to the x-direction. All wave heading input values are expressed in degrees.
 
 As shown in the table below, the first three lines after the last value from the previous section are ignored.
 
@@ -86,14 +86,14 @@ As shown in the table below, the first two lines after the last value from the p
 | if `NBODY=1` | `28x,3f12.3` | `XR(1:3)` | Rotation center coordinates |
 | if `NBODY>1` | `28x,3f12.3` | `XR_MULTI(NBODY,1:3)` | Each body's rotation center coordinates; one set of coordinates per line |
 
-**Reflection and Solver Options**
+**Solver Options**
 
 This section begines on the next line after the previous one. 
 
 | Line | Format | Variable | Description |
 | :--- | :--- | :--- | :--- |
 | next | `26x,f30.15` | `REFL` | Reference body length |
-| next | `26x,i16` | `ISOL` | Wave diffraction solution; switch: 1 or 2  |
+| next | `26x,i16` | `ISOL` | Wave diffraction solution. Switch: 1 or 2. 1 if incident and scattering potentials are combined; 2 if only scattering.  |
 | next | `23x,i16` | `IRSP` | Irregular frequencies: 1 for to remove them, 0 to keep them |
 | next | `23x,i16` | `NTHREAD` | Number of OpenMP threads; setting it to 1 removes parallelization |
 

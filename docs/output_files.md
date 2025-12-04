@@ -26,9 +26,17 @@ All quantities except the center of gravity are defined by the user in `ControlF
 ## HAMS Format
 
 HAMS-MREL generates output files in its native HAMS format for both single and multi-body simulations. The files contain added-mass, radiation-damping, and excitation-force data, respectively. For each quantity, six files are generated, one for each of the six degrees of freedom:
-  - `OAMASS<1-6>.txt` Written by the subroutine `RFORCE` (PotentWavForce.f90) for single-body simulations and `RFORCE_MULTI` (PotentWavForceMulti.f90) for multiple-body simulations.
-  - `ODAMPING<1-6>.txt` Written by the subroutine `RFORCE` (PotentWavForce.f90) for single-body simulations and `RFORCE_MULTI` (PotentWavForceMulti.f90) for multiple-body simulations.
-  - `OEXFOR<1-6>.txt` Written by the subroutine `EFORCE` (PotentWavForce.f90) for single-body simulations and `EFORCE_MULTI` (PotentWavForceMulti.f90) for multiple-body simulations.
+
+| File | Quantity | Columns | Rows | Writer Subroutines |
+| :--- | :--- | :--- | :--- | :--- |
+| `OAMASS<1-6>.txt` | added-mass | 8 - frequency, wave number and added mass for the six degrees of freedom | $num$ $frequencies$ $*$ $(num$ $bodies)^2$ | `RFORCE` and `RFORCE_MULTI` |
+| `ODAMPING<1-6>.txt` | damping coefficients | 8 - frequency, wave number and damping for the six degrees of freedom | $num$ $frequencies$ $*$ $(num$ $bodies)^2$ | `RFORCE` and `RFORCE_MULTI` |
+| `OEXFOR<1-6>.txt` | excitation forces | 4 - frequency, wave number and real and imaginary parts of the excitation force | $num$ $bodies$ $*$ $num$ $headings$ $*$ $num$ $frequencies$  | `EFORCE` and `EFORCE_MULTI` |
+
+In all files, the output frequency type is defined by the user in `ControlFile.in` via the `OUFT` parameter.
+
+All writer subroutines are located in [PotentWavForce.f90](../src/PotentWavForce.f90) and  [PotentWavForceMulti.f90](../src/PotentWavForceMulti.f90).
+
 
 ## WAMIT Format
 
