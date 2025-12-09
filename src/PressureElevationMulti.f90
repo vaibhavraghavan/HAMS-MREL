@@ -345,7 +345,7 @@ CONTAINS
 ! -----------------------------------------------------------
       SUBROUTINE OutputPressureElevation_RadiationMulti(NFILE,NBODY)
       
-      use IO, only : one_wamit6p_file_per_body
+      use IO, only : separate_wamit_diffraction_radiation_files
       
       IMPLICIT NONE
 !
@@ -362,7 +362,7 @@ CONTAINS
       DO IPT=1,NFP
           XP=XFP(IPT,:)
           NELEM_GLOBAL=0
-          if (.not. one_wamit6p_file_per_body) then
+          if (.not. separate_wamit_diffraction_radiation_files) then
               write(NFILE, '(ES14.6,I10)', ADVANCE='NO') OUFR, IPT
           end if
       DO FILE_NUMBER = 1,NBODY
@@ -399,7 +399,7 @@ CONTAINS
 !   
       
           ENDDO
-          if (one_wamit6p_file_per_body) then
+          if (separate_wamit_diffraction_radiation_files) then
               fmt_string = '(ES14.6,I10,12ES14.6)'
               write(NFILE+FILE_NUMBER, FMT=fmt_string) OUFR, IPT, VCPX
           else 
@@ -414,8 +414,6 @@ CONTAINS
 !    Output pressures and elevations into the WAMIT format for diffraction
 ! -----------------------------------------------------------
       SUBROUTINE OutputPressureElevation_DiffractionMulti(NFILE,NBODY)
-
-      use IO, only : one_wamit6p_file_per_body
 
       IMPLICIT NONE
 !
@@ -438,13 +436,9 @@ CONTAINS
         CALL WamitNondimensMulti(VCP,'Elevation','Diffraction',0,NVCP)
        ENDIF
 
-       if (one_wamit6p_file_per_body) then
-           do I=1,NBODY
-               WRITE(NFILE+I,1020) OUFR, BETA*180.0D0/PI, IPT, NVCP
-           end do
-       else 
-           WRITE(NFILE,1020) OUFR, BETA*180.0D0/PI, IPT, NVCP
-       end if
+      ! Write output in Wamit Format
+      WRITE(NFILE,1020) OUFR, BETA*180.0D0/PI, IPT, NVCP
+
       ENDDO
       
 1020  FORMAT(2ES14.6,I10,2ES14.6)

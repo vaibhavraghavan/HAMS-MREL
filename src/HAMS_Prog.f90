@@ -706,7 +706,11 @@ program HAMS_MREL
                     EXFC_MULTI_COMB(KK,II,6*(FILE_M-1)+1:6*(FILE_M-1)+6) = EXFC_MULTI(FILE_M,KK,II,:)
                 ENDDO
                 CALL SolveMotionMulti(W1,TP,OUFR,BETA,AMP,AMAS_MULTI_COMB(KK,:,:),BDMP_MULTI_COMB(KK,:,:),BLNR_MULTI,BQDR_MULTI,EXFC_MULTI_COMB(KK,II,:),DSPL_MULTI_COMB(KK,II,:),NBODY)
-                CALL OutputPressureElevation_DiffractionMulti(640,NBODY) ! File 640 is the diffraction file created as part of the process when reading the input files.
+                if (separate_wamit_diffraction_radiation_files) then
+                    CALL OutputPressureElevation_DiffractionMulti(639,NBODY)
+                else 
+                    CALL OutputPressureElevation_DiffractionMulti(640,NBODY) ! File 640 is the diffraction file created as part of the process when reading the input files.
+                end if
                 CALL OutputPressureElevation_IncidenceMulti(66,NBODY)
          
             ENDDO

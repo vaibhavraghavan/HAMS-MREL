@@ -35,7 +35,7 @@ module IO
     public :: CreateOutputFiles
 
     ! Write one PressureElevation.6p file per body 
-    logical, public :: one_wamit6p_file_per_body
+    logical, public :: separate_wamit_diffraction_radiation_files
 
     contains
 
@@ -171,17 +171,6 @@ module IO
         ! Field Points
         read(1,*) 
         read(1,*)
-        ! Check if user defined "one_wamit6p_file_per_body'
-        read(1,'(A)') line
-        if (index(line, "wamit") > 0 .or. index(line, "Wamit") > 0) then
-            ! Parse optional line
-            read(line, '(27x,i16)') one_wamit6p_file_per_body
-        else
-            ! The line is actually Number of Field Points
-            ! Put the file pointer back for re-read
-            one_wamit6p_file_per_body = .false.
-            backspace(1)
-        end if
         ! Read number of field points
         read(1,'(27x,i16)')        NFP
         ! Read field points
@@ -190,6 +179,23 @@ module IO
             ! READ(1,'(26x,3(1x,f10.4))')     (XFP(I,J), J=1,3)
             read(1,*) (XFP(I,J), J=1,3)
         end do
+
+        ! Wamit output config
+        read(1,*)
+        read(1,*)
+        ! Check if user defined "separate_wamit_diffraction_radiation_files'
+        read(1,'(A)') line
+        if (index(line, "separate") > 0 .or. index(line, "Separate") > 0) then
+            ! Parse optional line
+            read(line, '(50x,i16)') separate_wamit_diffraction_radiation_files
+        else
+            ! User did not define option
+            separate_wamit_diffraction_radiation_files = .false.
+        end if
+        if (NBODY == 1) then
+            ! Always false for single-body simulationas.
+            separate_wamit_diffraction_radiation_files = .false.
+        end if
 
         success = .true.
 
@@ -293,10 +299,11 @@ module IO
         open(62, file=dir//'/ExcForce.3', status='UNKNOWN')
         open(63, file=dir//'/Motion.4', status='UNKNOWN')
         open(65, file=dir//'/Hydrostat.hst', status='UNKNOWN')
-        if (numbodies > 1 .AND. one_wamit6p_file_per_body) then
+        if (numbodies > 1 .AND. separate_wamit_diffraction_radiation_files) then
+            open(639, file=dir//'/PressureElevationDiffraction.6p', status='UNKNOWN')
             do i = 1, numbodies
                 write(istr, '(I5)') i   ! Convert i to str
-                open(640+i, file=dir//'/PressureElevation_'//trim(adjustl(istr))//'.6p', status='UNKNOWN')
+                open(640+i, file=dir//'/PressureElevationRadiation_'//trim(adjustl(istr))//'.6p', status='UNKNOWN')
             end do
         else
             open(640, file=dir//'/PressureElevation.6p', status='UNKNOWN')
