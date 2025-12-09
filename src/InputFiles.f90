@@ -34,6 +34,9 @@ module IO
     public :: VerifyInputFilesExist
     public :: CreateOutputFiles
 
+    ! Write one PressureElevation.6p file per body 
+    logical, public :: one_wamit6p_file_per_body
+
     contains
 
     subroutine ReadControlFile(dir, success)
@@ -49,7 +52,7 @@ module IO
         logical :: exists
 
         integer I,J,err,IFS,NPET,NB
-        character(len=100) FILE_RADIATION,FILE_NUMBER,BODY_CHECK
+        character(len=100) FILE_RADIATION,FILE_NUMBER,BODY_CHECK,line
 
         success = .false.
 
@@ -165,9 +168,23 @@ module IO
         read(1,'(23x,i16)')        IRSP
         read(1,'(23x,i16)')        NTHREAD
 
+        ! Field Points
         read(1,*) 
-        read(1,*) 
+        read(1,*)
+        ! Check if user defined "one_wamit6p_file_per_body'
+        read(1,'(A)') line
+        if (index(line, "wamit") > 0 .or. index(line, "Wamit") > 0) then
+            ! Parse optional line
+            read(line, '(27x,i16)') one_wamit6p_file_per_body
+        else
+            ! The line is actually Number of Field Points
+            ! Put the file pointer back for re-read
+            one_wamit6p_file_per_body = .false.
+            backspace(1)
+        end if
+        ! Read number of field points
         read(1,'(27x,i16)')        NFP
+        ! Read field points
         allocate(XFP(NFP,3))
         do I = 1,NFP
             ! READ(1,'(26x,3(1x,f10.4))')     (XFP(I,J), J=1,3)
@@ -267,16 +284,23 @@ module IO
         implicit none
         character(len=*), intent(in) :: dir
         integer, intent(in) :: numbodies
-        character(len=5) :: istr ! len=5 assumes <= 99999 bodies
         integer :: i
+        character(len=5) :: istr ! len=5 assumes <= 99999 bodies
 
         ! IDs used in open statements are also used in write statements
         ! Don't modify their values or write statements will not find the files
         open(61, file=dir//'/AmssDamp.1', status='UNKNOWN')
         open(62, file=dir//'/ExcForce.3', status='UNKNOWN')
         open(63, file=dir//'/Motion.4', status='UNKNOWN')
-        open(64, file=dir//'/PressureElevation.6p', status='UNKNOWN')
         open(65, file=dir//'/Hydrostat.hst', status='UNKNOWN')
+        if (numbodies > 1 .AND. one_wamit6p_file_per_body) then
+            do i = 1, numbodies
+                write(istr, '(I5)') i   ! Convert i to str
+                open(640+i, file=dir//'/PressureElevation_'//trim(adjustl(istr))//'.6p', status='UNKNOWN')
+            end do
+        else
+            open(640, file=dir//'/PressureElevation.6p', status='UNKNOWN')
+        end if
         if (numbodies > 1) then
             open(66, file=dir//'/PressureElevationIncidence.6p', status='UNKNOWN')
         end if

@@ -278,7 +278,7 @@ program HAMS_MREL
             ENDIF
 
             CALL RFORCE(WK,W1,TP,AMAS(KK,:,:),BDMP(KK,:,:))
-            CALL OutputPressureElevation_Radiation(64)                ! This needs to be implemented for multi-bodies
+            CALL OutputPressureElevation_Radiation(640)                ! This needs to be implemented for multi-bodies
         
             ! Solving the diffraction problem 
             DO II=1,NBETA
@@ -296,7 +296,7 @@ program HAMS_MREL
         
                 CALL EFORCE(WK,W1,TP,BETA,AMP,EXFC(KK,II,:))
                 CALL SolveMotion(W1,TP,OUFR,BETA,AMP,AMAS(KK,:,:),BDMP(KK,:,:),BLNR,BQDR,EXFC(KK,II,:),DSPL(KK,II,:))           ! Has to be implemented for multi-bodies
-                CALL OutputPressureElevation_Diffraction(64)                  ! Has to be implemented for multi-bodies
+                CALL OutputPressureElevation_Diffraction(640)                  ! Has to be implemented for multi-bodies
             ENDDO
         
         ENDDO
@@ -672,7 +672,7 @@ program HAMS_MREL
                     CALL RFORCE_MULTI(WK,W1,TP,AMAS_MULTI_COMB(KK,6*(FILE_M-1)+1:6*(FILE_M-1)+6,6*(FILE_N-1)+1:6*(FILE_N-1)+6),BDMP_MULTI_COMB(KK,6*(FILE_M-1)+1:6*(FILE_M-1)+6,6*(FILE_N-1)+1:6*(FILE_N-1)+6),NELEM_TOTAL_RAD(2*FILE_M-1),NELEM_TOTAL_RAD(2*FILE_M),FILE_N,FILE_M,FILE_N) 
                 ENDDO
             ENDDO
-            CALL OutputPressureElevation_RadiationMulti(64,NBODY)
+            CALL OutputPressureElevation_RadiationMulti(640,NBODY)
         
             ! Solving the diffraction problem 
             DO II=1,NBETA
@@ -706,7 +706,7 @@ program HAMS_MREL
                     EXFC_MULTI_COMB(KK,II,6*(FILE_M-1)+1:6*(FILE_M-1)+6) = EXFC_MULTI(FILE_M,KK,II,:)
                 ENDDO
                 CALL SolveMotionMulti(W1,TP,OUFR,BETA,AMP,AMAS_MULTI_COMB(KK,:,:),BDMP_MULTI_COMB(KK,:,:),BLNR_MULTI,BQDR_MULTI,EXFC_MULTI_COMB(KK,II,:),DSPL_MULTI_COMB(KK,II,:),NBODY)
-                CALL OutputPressureElevation_DiffractionMulti(64,NBODY) ! File 64 is the diffraction file created as part of the process when reading the input files.
+                CALL OutputPressureElevation_DiffractionMulti(640,NBODY) ! File 640 is the diffraction file created as part of the process when reading the input files.
                 CALL OutputPressureElevation_IncidenceMulti(66,NBODY)
          
             ENDDO
