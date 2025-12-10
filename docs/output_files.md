@@ -48,32 +48,35 @@ WAMIT files:
 - `AmssDamp.1 file`: the frequency‑dependent **added‑mass $A_{ij}$ and damping coefficients $B_{ij}$** matrices for the radiation problem, over a range of wave frequencies (periods). The file contains 5 columns: period, i, j, $A_{ij}$, $B_{ij}$. The number of rows for a single-body siumulation is: $6 x 6$ $x$ $num$  $periods$. For multiple bodies, the number of rows is $n$ - $bodies$  $x$ $6 x 6$ $x$ $num$  $periods$.
 
     - *See Wamit Manual section 5.2*
-    - Written by the subroutine `RFORCE` (PotentWavForce.f90) for single-body simulations and `RFORCE_MULTI` (PotentWavForceMulti.f90) for multiple-body simulations.
+    - Written by the subroutine `RFORCE` ([PotentWavForce.f90](../src/PotentWavForce.f90)) for single-body simulations and `RFORCE_MULTI` ([PotentWavForceMulti.f90](../src/PotentWavForceMulti.f90)) for multiple-body simulations.
  
 - `ExcForce.3 file`: the frequency and direction dependent wave **excitation force vector $X_{i}$** from the diffraction problem. The elements of the vector are defined in terms of their magnitude (Mod), phase in degrees (Pha), and also in terms of their real (Re) and imaginary (Im) components. The file contains 6 columns: period, wave heading, i, $Mod(X_{i})$, $Pha(X_{i})$, $Re(X_{i})$, $Im(X_{i})$. The number of rows for a single-body simulation is: $6$ $x$ $num$ $headings$ $x$ $num$ $periods$. For multiple bodies, the number of rows is $n$ - $bodies$  $x$ $6$ $x$ $num$ $headings$ $x$ $num$  $periods$.
 
     - *See Wamit Manual section 5.2 and 3.3.*
-    - Written by the subroutine `EFORCE` (PotentWavForce.f90) for single-body simulations and `EFORCE_MULTI` (PotentWavForceMulti.f90) for multiple-body simulations.
+    - Written by the subroutine `EFORCE` ([PotentWavForce.f90](../src/PotentWavForce.f90)) for single-body simulations and `EFORCE_MULTI` ([PotentWavForceMulti.f90](../src/PotentWavForceMulti.f90)) for multiple-body simulations.
 
 - `Motion.4 file`: the **motion amplitudes vector $\epsilon_{i}$**. The elements of the vector are defined in terms of their magnitude (Mod), phase in degrees (Pha), and also in terms of their real (Re) and imaginary (Im) components. The file contains 6 columns: period, wave heading, i, $Mod(\epsilon_{i})$, $Pha(\epsilon_{i})$, $Re(\epsilon_{i})$, $Im(\epsilon_{i})$. The number of rows for a single-body simulation is: $6$ $x$ $num$ $headings$ $x$ $num$ $periods$. For multiple bodies, the number of rows is $n$ - $bodies$  $x$ $6$ $x$ $num$ $headings$ $x$ $num$  $periods$.
 
     - *See Wamit Manual section 5.2 and 3.4.*
-    - Written by the subroutine `SolveMotion` (SolveMotion.f90) for both single and multi-body simulations.
+    - Written by the subroutine `SolveMotion` ([SolveMotion.f90](../src/SolveMotion.f90)) for both single and multi-body simulations.
 
 - `PressureElevation.6p file`: the hydrodynamic **pressure/free surface elevation on the body** for the radiation $p_i$ and diffraction problems $p_D$. The file contains two types of outputs:
     - period, $i$, $Re(p_1)$, $Im(p_1)$, $Re(p_2)$, $Im(p_2)$ $...$ - This will be 12 columns (real and imaginary part for 6 DOFs) for the radiation pressure/elevation values per body per field point. The number of rows would be $num$  $periods$ $x$ $num$ $fieldpoint$ $x$ $n$ - $bodies$.
     - period, wave heading, $i$, $Re(p_D)$, $Im(p_D)$ - This will be 2 columns for the real and imaginary part of the diffraction pressure/free surface elevation per field point. The number of rows would be $num$  $periods$ $x$ $num$ $fieldpoint$.
 
     - *See Wamit Manual section 5.2 and 3.5.*
-    - Single-body simulations: written in subroutines `OutputPressureElevation_Radiation` and `OutputPressureElevation_Diffraction` (PressureElevation.f90)
-    - Multi-body simulations: written in subroutines `OutputPressureElevation_RadiationMulti` and `OutputPressureElevation_DiffractionMulti` (PressureElevationMulti.f90)
 
-- `PressureElevationIncidence.6p file`: written for multi-body simulation only in subroutine `OutputPressureElevation_IncidenceMulti` (PressureElevationMulti.f90). 
+    - If `separate_wamit_diffraction_and_radiation_files` in ControlFile.in is set to 1, the outputs are split into: `PressureElevationRadiation_<n-body>.6p` (one file per body) and `PressureElevationDiffraction.6p`. 
+
+    - Single-body simulations are written in subroutines `OutputPressureElevation_Radiation` and `OutputPressureElevation_Diffraction` ([PressureElevation.f90](../src/PressureElevation.f90))
+    - Multi-body simulations are written in subroutines `OutputPressureElevation_RadiationMulti` and `OutputPressureElevation_DiffractionMulti` ([PressureElevationMulti.f90](../src/PressureElevationMulti.f90))
+
+- `PressureElevationIncidence.6p file`: written for multi-body simulation only in subroutine `OutputPressureElevation_IncidenceMulti` ([PressureElevationMulti.f90](../src/PressureElevationMulti.f90)). 
 
 - `Hydrostat.hst file`: the non-dimensional **hydrostatic matrix $C_{ij}$**. The file contains three columns: i, j, $C_{ij}$. The number of rows is 36 for a single-body simulation (combinations of i and j). For multiple bodies, the number of rows is $n$ - $bodies$  $x$ $36$.
 
     - *See Wamit Manual section 5.6.*
-    - Written by the subroutine `ReadHydroStatic` (HydroStatic.f90) for single-body simulations and `ReadHydroStaticMulti` (HydroStaticMulti.f90) for multi-body simulations.
+    - Written by the subroutine `ReadHydroStatic` ([HydroStatic.f90](../src/HydroStatic.f90)) for single-body simulations and `ReadHydroStaticMulti` ([HydroStaticMulti.f90](../src/HydroStaticMulti.f90)) for multi-body simulations.
 
 ## Hydrostar Format
 

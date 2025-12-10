@@ -108,6 +108,21 @@ As shown in the table below, the first two lines after the last value from the p
 | next | `27x,i16` | `NFP` | Number of field points to output field pressure and elevation. |
 | next `NFP` lines | free | `XFP(I,1:3)` | Coordinates of field points (1 set per line) |
 
+**Output Files**
+
+Every simulation outputs the hydrodynamic pressure and free-surface elevation on the bodies for the radiation and diffraction problems. These quantities are written in WAMIT format to the file `PressureElevation.6p` by default.
+
+If `separate_wamit_diffraction_and_radiation_files = true`, the radiation and diffraction results are written to separate files instead:
+- Radiation: `PressureElevationRadiation_<1_to_number_bodies>.6p` (one file per body)
+- Diffraction: `PressureElevationDiffraction.6p`
+
+| Line | Format | Variable | Description |
+| :--- | :--- | :--- | :--- |
+| next | free | - | Comment or blank line (ignored) |
+| next | free | - | Comment or blank line (ignored) |
+| next | `50x,i16` | `separate_wamit_diffraction_and_radiation_files` | Switch: 0 or 1. 0 for false, 1 for true. |
+
+
 ## Hydrostatic.in
 
 Hydrostatic and damping properties are specified in the `Hydrostatic[_i].in` files. They are read by the subroutine `ReadHydroStaticMulti` in [HydroStaticMulti.f90](../src/HydroStaticMulti.f90). There is one file per body.
