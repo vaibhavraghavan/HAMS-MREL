@@ -36,6 +36,7 @@ MODULE PotentWavForceMulti
 
    PUBLIC :: EFORCE_MULTI
    PUBLIC :: RFORCE_MULTI
+   PUBLIC :: ReorderAmssDamp
    
 CONTAINS
 ! ------------------------------------------------------------------- 
@@ -145,6 +146,10 @@ CONTAINS
       REAL*8:: AMFJ(6),NAMAS(6,6),NBDMP(6,6)
       COMPLEX*16 RPHI,IPHI
       
+      ! Initialize arrays to zero to prevent NaN from uninitialized memory
+      AMAS = 0.0D0
+      BDMP = 0.0D0
+      
       !!$CALL OMP_SET_NUM_THREADS(NTHREAD)
       !!$OMP PARALLEL DO PRIVATE(IEL,IP,MD,RPHI,IPHI) !$OMP REDUCTION(+:AMAS,BDMP)
 
@@ -219,6 +224,126 @@ CONTAINS
 
       RETURN
       END SUBROUTINE RFORCE_MULTI
-!-------------------------------------------------------------------------------
+      
+!  ------------------------------------------------------------------------------------------------------
+!    Subroutine to reorder WAMIT-style hydrodynamic coefficient files
+!    Reorders from body-pair block format to row-major format
+!    (all columns for row 1, then all columns for row 2, etc.)
+!    Cross-platform: works on both Windows and Linux
+!  ------------------------------------------------------------------------------------------------------
+
+      SUBROUTINE ReorderAmssDamp(filename, NFREQ, NDOF)
+          IMPLICIT NONE
+      
+          CHARACTER(LEN=*), INTENT(IN) :: filename
+          INTEGER, INTENT(IN) :: NFREQ    ! Number of frequencies
+          INTEGER, INTENT(IN) :: NDOF     ! Total DOFs (e.g., 36 for 6 bodies x 6 DOF)
+      
+          ! Local variables
+          INTEGER :: I, IOS, IFREQ, IROW, ICOL, LINE_COUNT, NFREQ_FOUND
+          REAL*8, ALLOCATABLE :: FREQ(:,:,:)      ! (NFREQ, NDOF, NDOF)
+          REAL*8, ALLOCATABLE :: AMAS(:,:,:)      ! (NFREQ, NDOF, NDOF)
+          REAL*8, ALLOCATABLE :: BDMP(:,:,:)      ! (NFREQ, NDOF, NDOF)
+          REAL*8, ALLOCATABLE :: FREQ_LIST(:)     ! List of frequencies
+      
+          REAL*8 :: FREQ_VAL, AMAS_VAL, BDMP_VAL, LAST_FREQ
+          INTEGER :: ROW_VAL, COL_VAL
+          LOGICAL :: file_exists, file_open
+      
+          ! Check if file exists
+          INQUIRE(FILE=TRIM(filename), EXIST=file_exists)
+          IF (.NOT. file_exists) RETURN
+          
+          ! Make sure unit 61 is closed (the original write unit for AmssDamp.1)
+          INQUIRE(UNIT=61, OPENED=file_open)
+          IF (file_open) CLOSE(61)
+      
+          ! Allocate arrays
+          ALLOCATE(FREQ(NFREQ, NDOF, NDOF), STAT=IOS)
+          IF (IOS /= 0) RETURN
+          ALLOCATE(AMAS(NFREQ, NDOF, NDOF), STAT=IOS)
+          IF (IOS /= 0) THEN
+             DEALLOCATE(FREQ)
+             RETURN
+          ENDIF
+          ALLOCATE(BDMP(NFREQ, NDOF, NDOF), STAT=IOS)
+          IF (IOS /= 0) THEN
+             DEALLOCATE(FREQ, AMAS)
+             RETURN
+          ENDIF
+          ALLOCATE(FREQ_LIST(NFREQ), STAT=IOS)
+          IF (IOS /= 0) THEN
+             DEALLOCATE(FREQ, AMAS, BDMP)
+             RETURN
+          ENDIF
+      
+          ! Initialize
+          FREQ = 0.0D0
+          AMAS = 0.0D0
+          BDMP = 0.0D0
+          FREQ_LIST = 0.0D0
+      
+          ! Read the original file
+          OPEN(UNIT=901, FILE=TRIM(filename), STATUS='OLD', ACTION='READ', IOSTAT=IOS)
+          IF (IOS /= 0) THEN
+             DEALLOCATE(FREQ, AMAS, BDMP, FREQ_LIST)
+             RETURN
+          ENDIF
+          
+          ! Read all data, detecting frequency changes
+          IFREQ = 0
+          LAST_FREQ = -999.0D0
+          
+          DO
+             READ(901, *, IOSTAT=IOS) FREQ_VAL, ROW_VAL, COL_VAL, AMAS_VAL, BDMP_VAL
+             IF (IOS /= 0) EXIT
+             
+             ! Detect new frequency
+             IF (ABS(FREQ_VAL - LAST_FREQ) > 1.0D-10) THEN
+                IFREQ = IFREQ + 1
+                IF (IFREQ > NFREQ) IFREQ = NFREQ
+                FREQ_LIST(IFREQ) = FREQ_VAL
+                LAST_FREQ = FREQ_VAL
+             ENDIF
+             
+             ! Store data if indices are valid
+             IF (ROW_VAL >= 1 .AND. ROW_VAL <= NDOF .AND. &
+                 COL_VAL >= 1 .AND. COL_VAL <= NDOF .AND. &
+                 IFREQ >= 1 .AND. IFREQ <= NFREQ) THEN
+                FREQ(IFREQ, ROW_VAL, COL_VAL) = FREQ_VAL
+                AMAS(IFREQ, ROW_VAL, COL_VAL) = AMAS_VAL
+                BDMP(IFREQ, ROW_VAL, COL_VAL) = BDMP_VAL
+             ENDIF
+          ENDDO
+      
+          CLOSE(901)
+          NFREQ_FOUND = IFREQ
+      
+          ! Write reordered data back to original file
+          OPEN(UNIT=902, FILE=TRIM(filename), STATUS='REPLACE', ACTION='WRITE', IOSTAT=IOS)
+          IF (IOS /= 0) THEN
+             DEALLOCATE(FREQ, AMAS, BDMP, FREQ_LIST)
+             RETURN
+          ENDIF
+      
+          DO I = 1, NFREQ_FOUND
+             DO IROW = 1, NDOF          ! Row as outer loop
+                DO ICOL = 1, NDOF       ! Column as inner loop
+                   WRITE(902, '(ES14.6, 2I6, 2ES14.6)') &
+                      FREQ_LIST(I), IROW, ICOL, &
+                      AMAS(I, IROW, ICOL), BDMP(I, IROW, ICOL)
+                ENDDO
+             ENDDO
+          ENDDO
+      
+          CLOSE(902)
+      
+          WRITE(*,*) ' AmssDamp.1 has been rearranged to row-major format.'
+      
+          ! Deallocate
+          DEALLOCATE(FREQ, AMAS, BDMP, FREQ_LIST)
+      
+      END SUBROUTINE ReorderAmssDamp
+
 END MODULE PotentWavForceMulti
 !*******************************************************************************

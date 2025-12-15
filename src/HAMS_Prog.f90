@@ -714,8 +714,10 @@ program HAMS_MREL
                 CALL OutputPressureElevation_IncidenceMulti(66,NBODY)
          
             ENDDO
-        
         ENDDO
+        CLOSE(61)
+        CALL ReorderAmssDamp('Output/Wamit_format/AmssDamp.1', NPER, 6*NBODY) !Reorder the WAMIT format .1 file
+        CLOSE(61)
        
         !TODO De allocate the arrays after utilization
         
