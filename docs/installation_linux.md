@@ -69,7 +69,7 @@ This will create an executable called `hamsmrel` (specified by the `-o` option) 
 
 ### Build and Execute Using the Fortran Package Manager
 
-Alternatively, you may build, install and run HAMS-MREL using the Fortran Package Manager. This options makes use of the [fpm.toml](../fpm.toml) file which defines source files, dependencies, etc.
+Alternatively, you may build, install and run HAMS-MREL using the Fortran Package Manager. This option makes use of the [fpm.toml](../fpm.toml) file which defines source files, dependencies, etc.
 
 To build and run using FPM:
 
@@ -87,21 +87,69 @@ export FPM_FFLAGS="-qmkl -qopenmp"  # flags
 # Compile
 fpm build
 
-# Optionally, copy the executable to a specified directory
-fpm install --prefix <path-to-install-dir>
-
 # Run the application via fpm
 fpm run -- <path-to-input-files> <path-to-output-directory>
 
-# Or run the executable manually
+# Or copy the executable to a specified directory and run manually
+# fpm install --prefix <path-to-install-dir>
 # cd <path-to-install-dir>/bin
 # ./hamsmrel <path-to-input-files> <path-to-output-directory>
 ```
 
-## Building in a High Performance Computer Cluster (DelftBlue)
+## Building in a High Performance Computer Cluster
 
-This section provides instructions for building HAMS-MREL on the [DelftBlue HPC cluster](https://doc.dhpc.tudelft.nl/delftblue/). The steps are general and can be adapted to other HPC environments that use Slurm and provide Intel compilers including the oneMKL library.
+This section provides instructions for building HAMS-MREL on the [DelftBlue HPC cluster](https://doc.dhpc.tudelft.nl/delftblue/). The steps are general and can be adapted to other HPC environments that use Slurm and provide Intel compilers with the oneAPI MKL library.
 
+### Step 1: Compile HAMS-MREL
 
+```bash
+# Load required modules
+module load 2025
+module load intel/oneapi-all
+
+# Clone the repository
+git clone https://github.com/vaibhavraghavan/HAMS-MREL-DCC.git
+
+# Navigate to the src directory
+cd HAMS-MREL-DCC/src/
+
+# Compile with the IFX compiler
+ifx -qmkl -o hamsmrel WavDynMods.f90 WavDynSubs.f90 PatclVelct.f90 FinGrnExtSubs.f90 InfGreen_Appr.f90 FinGreen3D.f90 SingularIntgr.f90 SingularIntgrMulti.f90 CalGreenFunc.f90 CalGreenFuncMulti.f90 BodyIntgr_irr.f90 BodyIntgr.f90 BodyIntgr_irrMulti.f90 BodyIntgrMulti.f90 AssbMatx_irr.f90 AssbMatx.f90 AssbMatx_irrMulti.f90 AssbMatxMulti.f90 HydroStatic.f90 HydroStaticMulti.f90 NormalProcess.f90 ReadPanelMesh.f90 ReadPanelMeshMulti.f90 ImplementSubs.f90 PotentWavForce.f90 PotentWavForceMulti.f90 PressureElevation.f90 PressureElevationMulti.f90 SolveMotion.f90 PrintOutput.f90 InputFiles.f90 HAMS_Prog.f90 -qopenmp
+```
+
+This produces the executable `hamsmrel` in the `src` directory. The `-qmkl` and `-qopenmp` flags link the MKL library and enable OpenMP parallelization.
+
+### Step 2: Submit a Slurm job
+
+Create a Slurm job script, for example `slurmjob.sh`:
+
+```bash
+#!/bin/sh
+#SBATCH --job-name=hamsmulti
+#SBATCH --partition=compute
+#SBATCH --time=00:10:00         # job duration in hh:mm:ss
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=32      # number of OpenMP threads
+#SBATCH --mem-per-cpu=1G
+
+# Load Intel compilers
+module load intel/oneapi-all
+
+# Set the number of OpenMP threads 
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+
+# Run the application
+srun <path-to-hams-repository>/src/hamsmrel <input-files-path> <output-directory-path>
+```
+
+Submit the job with:
+```bash
+sbatch slurmjob.sh
+```
+
+This example runs HAMS-MREL on 1 node, 1 task, and 32 threads. Adjust `--cpus-per-task` depending on your simulation size and cluster resource allocation. This number must match the number of threads specified in the input file `ControlFile.in`.
+
+Note that DelftBlue imposes strict memory quotas on the `/home` directory (approx. 30 GBs). Run jobs in `/scratch` to avoid exceeding memory limits.
 
 

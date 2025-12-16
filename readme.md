@@ -10,7 +10,7 @@ HAMS-MREL is developed as an extension of the original [HAMS solver](https://git
 Installation instructions are provided for:
 - [Windows](docs/installation_windows.md)
 - [Linux (Ubuntu)](docs/installation_linux.md)
-- [High Performance Computig Clusters (DelftBlue)](docs/installation_linux.md)
+- [High Performance Computing Clusters](docs/installation_linux.md)
 
 HAMS-MREL requires input files to be placed in an input directory before execution. The program can be run in two ways, depending on whether the input and output directory locations are specified explicitly.
 
