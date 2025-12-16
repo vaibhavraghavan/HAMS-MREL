@@ -51,7 +51,7 @@ module IO
         logical, intent(out) :: success
         logical :: exists
 
-        integer I,J,err,IFS,NPET,NB,itemp
+        integer I,J,err,IFS,NPET,NB
         character(len=100) FILE_RADIATION,FILE_NUMBER,BODY_CHECK,line
 
         success = .false.
@@ -173,30 +173,29 @@ module IO
         read(1,*)
         ! Read number of field points
         read(1,'(27x,i16)')        NFP
-                ! Check if user defined "separate_wamit_diffraction_radiation_files'
-        read(1,'(A)') line
-        if (index(line, "separate") > 0 .or. index(line, "Separate") > 0) then
-            ! Parse optional line - find the value after the keyword
-            I = index(line, "separate")
-            if (I == 0) I = index(line, "Separate")
-            ! Read the integer value after the keyword (skip keyword + find number)
-            read(line(I+43:), *) itemp
-            separate_wamit_diffraction_radiation_files = (itemp == 1)
-        else
-            ! User did not define option - backspace to re-read this line as field point
-            separate_wamit_diffraction_radiation_files = .false.
-            backspace(1)
-        end if
-        if (NBODY == 1) then
-            ! Always false for single-body simulationas.
-            separate_wamit_diffraction_radiation_files = .false.
-        end if
         ! Read field points
         allocate(XFP(NFP,3))
         do I = 1,NFP
             ! READ(1,'(26x,3(1x,f10.4))')     (XFP(I,J), J=1,3)
             read(1,*) (XFP(I,J), J=1,3)
         end do
+
+        ! Wamit output config
+        read(1,*)
+        read(1,*)
+        ! Check if user defined "separate_wamit_diffraction_radiation_files'
+        read(1,'(A)') line
+        if (index(line, "separate") > 0 .or. index(line, "Separate") > 0) then
+            ! Parse optional line
+            read(line, '(50x,i16)') separate_wamit_diffraction_radiation_files
+        else
+            ! User did not define option
+            separate_wamit_diffraction_radiation_files = .false.
+        end if
+        if (NBODY == 1) then
+            ! Always false for single-body simulationas.
+            separate_wamit_diffraction_radiation_files = .false.
+        end if
 
         success = .true.
 
