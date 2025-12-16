@@ -1,6 +1,6 @@
 # Windows Installation Instructions
 
-This document describes how to set up a development environment that allows you to compile and run HAMS-MREL on the Windows.
+This document describes how to set up a development environment that allows you to compile and run HAMS-MREL on Windows.
 
 ## Step 1: Install Dependencies
 
@@ -8,7 +8,7 @@ HAMS-MREL requires the following software:
 
 ### Intel Fortran Compiler and oneMK Library
 
-Download and install the [Intel Fortran Essentials](https://www.intel.com/content/www/us/en/docs/oneapi/installation-guide-windows/2025-0/intel-fortran-essentials.html) bundle (includes the oneAPI MKL library) from the [Intel website](https://www.intel.com/content/www/us/en/developer/tools/oneapi/hpc-toolkit-download.html?packages=fortran-essentials&fortran-essentials-os=windows&fortran-essentials-win=offline).
+Download and install the [Intel Fortran Essentials](https://www.intel.com/content/www/us/en/docs/oneapi/installation-guide-windows/2025-0/intel-fortran-essentials.html) bundle (includes the oneAPI MKL library) bundle from the [Intel website](https://www.intel.com/content/www/us/en/developer/tools/oneapi/hpc-toolkit-download.html?packages=fortran-essentials&fortran-essentials-os=windows&fortran-essentials-win=offline).
 
 There are two types of types of installers: offline and online. Both can be installed with the command line (Command Prompt or Windows PowerShell) or via a GUI. If installing with the command line, make sure you activate the integration with Visual Studio by using the `NEED_VS<yyy>_INTEGRATION` property. For example, if Working With Visual Studio 2022:
 
