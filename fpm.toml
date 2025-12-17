@@ -8,6 +8,13 @@
 name = "HAMS-MREL"
 version = "0.0.0"
 
+# The automatic discovery recursively searches the app, example, and test directories 
+# for program definitions and declares them as executable, example, and test targets, respectively.
+[build]
+auto-executables = false
+auto-examples = false
+auto-tests = false
+
 # Define an executable called hamsmrel.
 [[executable]]
 name = "hamsmrel"
@@ -22,3 +29,16 @@ main = "HAMS_Prog.f90"
 # Tell fpm to build with OpenMP
 [dependencies]
 openmp = "*"
+
+# We define two test executables, one for unit tests and another for integration tests
+# This is so we can run both types of tests separately.
+[[test]]
+name = "integration-tester"
+main = "integration_tester.f90"
+
+[[test]]
+name = "unit-tester"
+main = "unit_tester.f90"
+
+[test.dependencies]
+test-drive = { git = "https://github.com/fortran-lang/test-drive"}
