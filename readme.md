@@ -57,6 +57,10 @@ HAMS-MREL produces output files in multiple established formats to support post-
 
 **A full description of each file is provided in [docs/output_files.md](docs/output_files.md)**.
 
+## Developer Documentation
+
+Additional developer-focused documentation is available in [`docs/developer_documentation.md`](docs/developer_documentation.md). This includes details on the test suite, the GitHub Actions continuous integration pipeline and results from memory profiling analysis.
+
 ## Citation
 
 If you use HAMS‑MREL in your research, please cite:
