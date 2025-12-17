@@ -280,7 +280,7 @@ program HAMS_MREL
             ENDIF
 
             CALL RFORCE(WK,W1,TP,AMAS(KK,:,:),BDMP(KK,:,:))
-            CALL OutputPressureElevation_Radiation(64)                ! This needs to be implemented for multi-bodies
+            CALL OutputPressureElevation_Radiation(640)                ! This needs to be implemented for multi-bodies
         
             ! Solving the diffraction problem 
             DO II=1,NBETA
@@ -298,7 +298,7 @@ program HAMS_MREL
         
                 CALL EFORCE(WK,W1,TP,BETA,AMP,EXFC(KK,II,:))
                 CALL SolveMotion(W1,TP,OUFR,BETA,AMP,AMAS(KK,:,:),BDMP(KK,:,:),BLNR,BQDR,EXFC(KK,II,:),DSPL(KK,II,:))           ! Has to be implemented for multi-bodies
-                CALL OutputPressureElevation_Diffraction(64)                  ! Has to be implemented for multi-bodies
+                CALL OutputPressureElevation_Diffraction(640)                  ! Has to be implemented for multi-bodies
             ENDDO
         
         ENDDO
@@ -522,11 +522,12 @@ program HAMS_MREL
         IF (IRSP.EQ.0) THEN
             ALLOCATE(AMAT_MULTI(TNELEM,TNELEM,NSYS),BRMAT_MULTI(TNELEM,6*NBODY,NSYS),BDMAT_MULTI(TNELEM,NSYS),IPIV_MULTI_COMB(TNELEM,NSYS))
             ALLOCATE(CGRN_MULTI_COMB(TNELEM,TNELEM,NSYS,4),RKBN_MULTI_COMB(TNELEM,TNELEM,NSYS,4)) ! These calculations are done for combination of all elements in all bodies together
-            ALLOCATE(MXPOT_MULTI_COMB(TNELEM,6*NBODY+1,NSYS),WVFQ(NPER),EXFC_MULTI(NBODY,NPER,NBETA,6),DSPL_MULTI(NBODY,NPER,NBETA,6),AMAS_MULTI(NPER,NBODY,6,6),BDMP_MULTI(NPER,NBODY,6,6),AMAS_MULTI_COMB(NPER,NBODY*6,NBODY*6),BDMP_MULTI_COMB(NPER,NBODY*6,NBODY*6))
+            ALLOCATE(MXPOT_MULTI_COMB(TNELEM,6*NBODY+1,NSYS),WVFQ(NPER),EXFC_MULTI(NBODY,NPER,NBETA,6), EXFC_MULTI_COMB(NPER,NBETA,NBODY*6),DSPL_MULTI_COMB(NPER,NBETA,NBODY*6),AMAS_MULTI(NPER,NBODY,6,6),BDMP_MULTI(NPER,NBODY,6,6),AMAS_MULTI_COMB(NPER,NBODY*6,NBODY*6),BDMP_MULTI_COMB(NPER,NBODY*6,NBODY*6))
             ALLOCATE(BLNR_MULTI(NBODY,6,6),BQDR_MULTI(NBODY,6,6))
             ALLOCATE(XYZ_GLOBAL_MULTI_COMB(TNTND,3),XYZ_GLOBAL_MULTI_COMB_P(TNELEM,3),PNSZ_MULTI_COMB(TNELEM),NCN_MULTI_COMB(TNELEM),NCON_MULTI_COMB(TNELEM,4))
             ALLOCATE(DS_MULTI_COMB(TNELEM),DXYZ_MULTI_COMB(TNELEM,6))
             ALLOCATE(NELEM_TOTAL_RAD(2*NBODY))
+            NELEM_PE = TNELEM
         ELSE
             ! There are changes to the size of the arrays based on the irregular frequency removal
             ALLOCATE(AMAT_MULTI(TNELEM,TNELEM,NSYS),BRMAT_MULTI(TNELEM,6*NBODY,NSYS),BDMAT_MULTI(TNELEM,NSYS),IPIV_MULTI_COMB(NELEM_TOTAL,NSYS))
@@ -541,6 +542,7 @@ program HAMS_MREL
             ALLOCATE(iDS_MULTI_COMB(iNELEM_TOTAL),iDXYZ_MULTI_COMB(iNELEM_TOTAL,6))
             ALLOCATE(DGRN_MULTI_COMB(iNELEM_TOTAL,NELEM_TOTAL,NSYS,4),PKBN_MULTI_COMB(iNELEM_TOTAL,NELEM_TOTAL,NSYS,4))
             ALLOCATE(CMAT_MULTI(NELEM_TOTAL,NELEM_TOTAL,NSYS),DRMAT_MULTI(NELEM_TOTAL,6*NBODY,NSYS),DDMAT_MULTI(NELEM_TOTAL,NSYS))
+            NELEM_PE = NELEM_TOTAL
         ENDIF
        
         CALL InitialisationMulti
@@ -556,7 +558,7 @@ program HAMS_MREL
             HYDROSTATIC_MULTI=trim(inputdir)//'/Hydrostatic_'//FILE_NUMBER
             HYDROSTATIC_MULTI=TRIM(HYDROSTATIC_MULTI)//'.in'
             OPEN(4, FILE=HYDROSTATIC_MULTI, STATUS='UNKNOWN', action='READ')
-            CALL ReadHydroStaticMulti(FILE_M)
+            CALL ReadHydroStaticMulti(FILE_M,NBODY)
             CLOSE(4)
             CALL CalNormalsMulti(FILE_M,IRSP)                                                      ! This is implemented for no removal of irregular frequencies at this point
         ENDDO
@@ -673,10 +675,10 @@ program HAMS_MREL
             BDMP_MULTI_COMB(KK,:,:)=0.D0
             DO FILE_M=1,NBODY
                 DO FILE_N=1,NBODY
-                    CALL RFORCE_MULTI(WK,W1,TP,AMAS_MULTI_COMB(KK,6*(FILE_M-1)+1:6*(FILE_M-1)+6,6*(FILE_N-1)+1:6*(FILE_N-1)+6),BDMP_MULTI_COMB(KK,6*(FILE_M-1)+1:6*(FILE_M-1)+6,6*(FILE_N-1)+1:6*(FILE_N-1)+6),NELEM_TOTAL_RAD(2*FILE_M-1),NELEM_TOTAL_RAD(2*FILE_M),FILE_N) 
+                    CALL RFORCE_MULTI(WK,W1,TP,AMAS_MULTI_COMB(KK,6*(FILE_M-1)+1:6*(FILE_M-1)+6,6*(FILE_N-1)+1:6*(FILE_N-1)+6),BDMP_MULTI_COMB(KK,6*(FILE_M-1)+1:6*(FILE_M-1)+6,6*(FILE_N-1)+1:6*(FILE_N-1)+6),NELEM_TOTAL_RAD(2*FILE_M-1),NELEM_TOTAL_RAD(2*FILE_M),FILE_N,FILE_M,FILE_N) 
                 ENDDO
             ENDDO
-            CALL OutputPressureElevation_RadiationMulti(210,NBODY)
+            CALL OutputPressureElevation_RadiationMulti(640,NBODY)
         
             ! Solving the diffraction problem 
             DO II=1,NBETA
@@ -695,24 +697,33 @@ program HAMS_MREL
                 NELEM_GLOBAL=0
                 DO FILE_M=1,NBODY
                     IF (FILE_M.EQ.1) THEN
-                        CALL EFORCE_MULTI(WK,W1,TP,BETA,AMP,EXFC_MULTI(FILE_M,KK,II,:),1,NELEM_MULTI(FILE_M),NBODY) 
+                        CALL EFORCE_MULTI(WK,W1,TP,BETA,AMP,EXFC_MULTI(FILE_M,KK,II,:),1,NELEM_MULTI(FILE_M),NBODY,FILE_M)
                     ELSEIF (FILE_M.EQ.NBODY) THEN
                         IF (IRSP.EQ.0) THEN
-                            CALL EFORCE_MULTI(WK,W1,TP,BETA,AMP,EXFC_MULTI(FILE_M,KK,II,:),NELEM_GLOBAL+1,TNELEM,NBODY)
+                            CALL EFORCE_MULTI(WK,W1,TP,BETA,AMP,EXFC_MULTI(FILE_M,KK,II,:),NELEM_GLOBAL+1,TNELEM,NBODY,FILE_M)
                         ELSE
-                            CALL EFORCE_MULTI(WK,W1,TP,BETA,AMP,EXFC_MULTI(FILE_M,KK,II,:),NELEM_GLOBAL+1,NELEM_TOTAL,NBODY)
+                            CALL EFORCE_MULTI(WK,W1,TP,BETA,AMP,EXFC_MULTI(FILE_M,KK,II,:),NELEM_GLOBAL+1,NELEM_TOTAL,NBODY,FILE_M)
                         ENDIF
                     ELSE
-                        CALL EFORCE_MULTI(WK,W1,TP,BETA,AMP,EXFC_MULTI(FILE_M,KK,II,:),NELEM_GLOBAL+1,NELEM_GLOBAL+NELEM_MULTI(FILE_M),NBODY)
+                        CALL EFORCE_MULTI(WK,W1,TP,BETA,AMP,EXFC_MULTI(FILE_M,KK,II,:),NELEM_GLOBAL+1,NELEM_GLOBAL+NELEM_MULTI(FILE_M),NBODY,FILE_M)
                     ENDIF
                     NELEM_GLOBAL=NELEM_GLOBAL+NELEM_MULTI(FILE_M)
+                    ! Creating the full EXFC array
+                    EXFC_MULTI_COMB(KK,II,6*(FILE_M-1)+1:6*(FILE_M-1)+6) = EXFC_MULTI(FILE_M,KK,II,:)
                 ENDDO
-                CALL OutputPressureElevation_DiffractionMulti(64,NBODY) ! File 64 is the diffraction file created as part of the process when reading the input files.
+                CALL SolveMotionMulti(W1,TP,OUFR,BETA,AMP,AMAS_MULTI_COMB(KK,:,:),BDMP_MULTI_COMB(KK,:,:),BLNR_MULTI,BQDR_MULTI,EXFC_MULTI_COMB(KK,II,:),DSPL_MULTI_COMB(KK,II,:),NBODY)
+                if (separate_wamit_diffraction_radiation_files) then
+                    CALL OutputPressureElevation_DiffractionMulti(639,NBODY)
+                else 
+                    CALL OutputPressureElevation_DiffractionMulti(640,NBODY) ! File 640 is the diffraction file created as part of the process when reading the input files.
+                end if
                 CALL OutputPressureElevation_IncidenceMulti(66,NBODY)
          
             ENDDO
-        
         ENDDO
+        CLOSE(61)
+        CALL ReorderAmssDamp('Output/Wamit_format/AmssDamp.1', NPER, 6*NBODY) !Reorder the WAMIT format .1 file
+        CLOSE(61)
        
         !TODO De allocate the arrays after utilization
         
@@ -758,6 +769,7 @@ program HAMS_MREL
         write(*,*) ' Congratulations! Your computation completes successfully.'
         write(*,*)
     end if
+	PAUSE
 
 end program HAMS_MREL
       

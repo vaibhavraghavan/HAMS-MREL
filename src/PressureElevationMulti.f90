@@ -65,7 +65,7 @@ CONTAINS
       COMPLEX*16  F0,DPOX,DPOY,DPOZ,DINCP,TERM1,TERM2,GRN(4),DUM(2)
       COMPLEX*16, ALLOCATABLE:: XPOT(:)
       
-      ALLOCATE(XPOT(TNELEM))
+      ALLOCATE(XPOT(NELEM_PE))
         
       IRR=1
       XPOT=DCMPLX(0.0D0, 0.0D0)
@@ -73,7 +73,7 @@ CONTAINS
 !$OMP PARALLEL NUM_THREADS(NTHREAD)
 !$OMP DO PRIVATE(JEL,XQ,ENV,EAR,IS,XP,DIST,FLAG,RKN,GRN,DUM,XT,ENT,DPOX,DPOY,DPOZ,DINCP,TERM1,TERM2) !$OMP REDUCTION(+:XPOT)
       
-      DO JEL=1, TNELEM
+      DO JEL=1, NELEM_PE
 
        XQ(1)=XYZ_GLOBAL_MULTI_COMB_P(JEL,1)     ! XQ: source point,  XP: field point
        XQ(2)=XYZ_GLOBAL_MULTI_COMB_P(JEL,2)
@@ -191,7 +191,7 @@ CONTAINS
       
       POT=0.D0
       
-      DO JEL=1,TNELEM
+      DO JEL=1,NELEM_PE
        POT=POT+XPOT(JEL)
       ENDDO
 
@@ -344,28 +344,39 @@ CONTAINS
 !    Output pressures and elevations into the WAMIT format for radiation
 ! -----------------------------------------------------------
       SUBROUTINE OutputPressureElevation_RadiationMulti(NFILE,NBODY)
+      
+      use IO, only : separate_wamit_diffraction_radiation_files
+      
       IMPLICIT NONE
 !
       INTEGER,INTENT(IN):: NFILE,NBODY
       INTEGER IPT,MD,ND,EMD,IHD,FILE_NUMBER,NELEM_START,NELEM_END,NELEM_GLOBAL
       REAL*8 XP(3)
       COMPLEX*16 VCP
-      COMPLEX*16,ALLOCATABLE:: VCPX(:,:)
+      COMPLEX*16 :: VCPX(6)
       INTEGER,ALLOCATABLE:: FACTOR_NORMAL(:)
+      CHARACTER(LEN=30) :: fmt_string
       
-      ALLOCATE(FACTOR_NORMAL(TNELEM))
-      NELEM_GLOBAL=0
+      ALLOCATE(FACTOR_NORMAL(NELEM_PE))
       
+      DO IPT=1,NFP
+          XP=XFP(IPT,:)
+          NELEM_GLOBAL=0
+          if (.not. separate_wamit_diffraction_radiation_files) then
+              write(NFILE, '(ES14.6,I10)', ADVANCE='NO') OUFR, IPT
+          end if
       DO FILE_NUMBER = 1,NBODY
-        ALLOCATE(VCPX(NFP,6))
+        VCPX = (0.0D0, 0.0D0)
         FACTOR_NORMAL = 0
+        fmt_string = '(24X, 12ES14.6)'
         IF (FILE_NUMBER.EQ.1) THEN
          NELEM_START = 1
          NELEM_END = NELEM_MULTI(FILE_NUMBER)
          FACTOR_NORMAL(NELEM_START:NELEM_END) = 1
+         fmt_string = '(12ES14.6)'
         ELSEIF (FILE_NUMBER.EQ.NBODY) THEN
-         NELEM_START = TNELEM-NELEM_MULTI(FILE_NUMBER)+1
-         NELEM_END = TNELEM
+         NELEM_START = NELEM_PE-NELEM_MULTI(FILE_NUMBER)+1
+         NELEM_END = NELEM_PE
          FACTOR_NORMAL(NELEM_START:NELEM_END) = 1
         ELSE
          NELEM_START = NELEM_GLOBAL+1
@@ -374,15 +385,13 @@ CONTAINS
         ENDIF
         NELEM_GLOBAL=NELEM_GLOBAL+NELEM_MULTI(FILE_NUMBER)
     
-       DO IPT=1,NFP
-        XP=XFP(IPT,:)
           DO MD=1,6
            IF (ABS(XP(3)).GT.1.E-6) THEN
             CALL CalPressureMulti(XP,'Radiation',MD,VCP,NBODY,FILE_NUMBER,FACTOR_NORMAL)
-            CALL WamitNondimensMulti(VCP,'Pressure','Radiation',MD,VCPX(IPT,MD)) ! Check this after fixing the potential function
+            CALL WamitNondimensMulti(VCP,'Pressure','Radiation',MD,VCPX(MD)) ! Check this after fixing the potential function
            ELSE
             CALL CalElevationMulti(XP,'Radiation',MD,VCP,NBODY,FILE_NUMBER,FACTOR_NORMAL)
-            CALL WamitNondimensMulti(VCP,'Elevation','Radiation',MD,VCPX(IPT,MD))
+            CALL WamitNondimensMulti(VCP,'Elevation','Radiation',MD,VCPX(MD))
            ENDIF
       
 !   ===================================================
@@ -390,29 +399,31 @@ CONTAINS
 !   
       
           ENDDO
-          WRITE(NFILE+FILE_NUMBER,1000) OUFR,IPT,(VCPX(IPT,ND),ND=1,6)
-      
+          if (separate_wamit_diffraction_radiation_files) then
+              fmt_string = '(ES14.6,I10,12ES14.6)'
+              write(NFILE+FILE_NUMBER, FMT=fmt_string) OUFR, IPT, VCPX
+          else 
+              write(NFILE, FMT=fmt_string) VCPX        
+          end if
        ENDDO
-       DEALLOCATE(VCPX)
       ENDDO
       
-1000  FORMAT(ES14.6,I10,12ES14.6)
-      RETURN
       END SUBROUTINE OutputPressureElevation_RadiationMulti
       
 ! -----------------------------------------------------------
 !    Output pressures and elevations into the WAMIT format for diffraction
 ! -----------------------------------------------------------
       SUBROUTINE OutputPressureElevation_DiffractionMulti(NFILE,NBODY)
+
       IMPLICIT NONE
 !
       INTEGER,INTENT(IN):: NFILE,NBODY
-      INTEGER IPT,MD,EMD,IHD
-      REAL*8 XP(3),REL,IMG,MOD,PHS
+      INTEGER IPT,MD,EMD,IHD,I
+      REAL*8 XP(3)
       COMPLEX*16 VCP,NVCP
       INTEGER,ALLOCATABLE:: FACTOR_NORMAL(:)
       
-      ALLOCATE(FACTOR_NORMAL(TNELEM))
+      ALLOCATE(FACTOR_NORMAL(NELEM_PE))
       FACTOR_NORMAL = 0
 
       DO IPT=1,NFP
@@ -424,17 +435,13 @@ CONTAINS
         CALL CalElevationMulti(XP,'Diffraction',6*NBODY+1,VCP,NBODY,0,FACTOR_NORMAL)
         CALL WamitNondimensMulti(VCP,'Elevation','Diffraction',0,NVCP)
        ENDIF
-       
-       !WRITE(NFILE,1020) OUFR,BETA*180.0D0/PI,IPT,NVCP
-       REL=REAL(NVCP)
-       IMG=IMAG(NVCP)
-       MOD=ABS(NVCP)
-       PHS=ATAN2D(IMG,REL)
-       WRITE(NFILE,1020) OUFR,BETA*180.0D0/PI,IPT,MOD,PHS,REL,IMG
-       
+
+      ! Write output in Wamit Format
+      WRITE(NFILE,1020) OUFR, BETA*180.0D0/PI, IPT, NVCP
+
       ENDDO
       
-1020  FORMAT(2ES14.6,I10,4ES14.6)
+1020  FORMAT(2ES14.6,I10,2ES14.6)
       RETURN
       END SUBROUTINE OutputPressureElevation_DiffractionMulti
       

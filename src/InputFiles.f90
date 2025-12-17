@@ -38,6 +38,9 @@ module IO
     ! Specify if WK1 and DWK were intialized (for ErrorCheck.txt)
     logical, private :: allocated_WK1_and_DWK
 
+    ! Write one PressureElevation.6p file per body 
+    logical, public :: separate_wamit_diffraction_radiation_files
+
     contains
 
     subroutine ReadControlFile(dir, success)
@@ -53,7 +56,7 @@ module IO
         logical :: exists
 
         integer I,J,err,IFS,NPET,NB
-        character(len=100) FILE_RADIATION,FILE_NUMBER,BODY_CHECK
+        character(len=100) FILE_RADIATION,FILE_NUMBER,BODY_CHECK,line
 
         success = .false.
 
@@ -171,14 +174,34 @@ module IO
         read(1,'(23x,i16)')        IRSP
         read(1,'(23x,i16)')        NTHREAD
 
+        ! Field Points
         read(1,*) 
-        read(1,*) 
+        read(1,*)
+        ! Read number of field points
         read(1,'(27x,i16)')        NFP
+        ! Read field points
         allocate(XFP(NFP,3))
         do I = 1,NFP
             ! READ(1,'(26x,3(1x,f10.4))')     (XFP(I,J), J=1,3)
             read(1,*) (XFP(I,J), J=1,3)
         end do
+
+        ! Wamit output config
+        read(1,*)
+        read(1,*)
+        ! Check if user defined "separate_wamit_diffraction_radiation_files'
+        read(1,'(A)') line
+        if (index(line, "separate") > 0 .or. index(line, "Separate") > 0) then
+            ! Parse optional line
+            read(line, '(50x,i16)') separate_wamit_diffraction_radiation_files
+        else
+            ! User did not define option
+            separate_wamit_diffraction_radiation_files = .false.
+        end if
+        if (NBODY == 1) then
+            ! Always false for single-body simulationas.
+            separate_wamit_diffraction_radiation_files = .false.
+        end if
 
         success = .true.
 
@@ -274,28 +297,26 @@ module IO
         implicit none
         character(len=*), intent(in) :: dir
         integer, intent(in) :: numbodies
-        character(len=5) :: istr ! len=5 assumes <= 99999 bodies
         integer :: i
+        character(len=5) :: istr ! len=5 assumes <= 99999 bodies
 
         ! IDs used in open statements are also used in write statements
         ! Don't modify their values or write statements will not find the files
-        if (numbodies == 1) then
-            open(61, file=dir//'/AmssDamp.1', status='UNKNOWN')
-            open(62, file=dir//'/ExcForce.3', status='UNKNOWN')
-            open(63, file=dir//'/Motion.4', status='UNKNOWN')
-            open(64, file=dir//'/PressureElevation.6p', status='UNKNOWN')
-            open(65, file=dir//'/Hydrostat.hst', status='UNKNOWN')
-        else if (numbodies > 1) then
-            open(61, file=dir//'/Buoy.1', status='UNKNOWN')
-            open(62, file=dir//'/Buoy.3', status='UNKNOWN')
-            open(63, file=dir//'/Buoy.4', status='UNKNOWN')
-            open(64, file=dir//'/Buoy_Diffraction.6p', status='UNKNOWN')
-            open(65, file=dir//'/Buoy.hst', status='UNKNOWN')
-            open(66, file=dir//'/Buoy_Incidence.6p', status='UNKNOWN')
+        open(61, file=dir//'/AmssDamp.1', status='UNKNOWN')
+        open(62, file=dir//'/ExcForce.3', status='UNKNOWN')
+        open(63, file=dir//'/Motion.4', status='UNKNOWN')
+        open(65, file=dir//'/Hydrostat.hst', status='UNKNOWN')
+        if (numbodies > 1 .AND. separate_wamit_diffraction_radiation_files) then
+            open(639, file=dir//'/PressureElevationDiffraction.6p', status='UNKNOWN')
             do i = 1, numbodies
-                write(istr, '(I5)') i
-                open(210+i, file=dir//'/Buoy_Radiation_'//trim(adjustl(istr))//'.6p', status='UNKNOWN') 
+                write(istr, '(I5)') i   ! Convert i to str
+                open(640+i, file=dir//'/PressureElevationRadiation_'//trim(adjustl(istr))//'.6p', status='UNKNOWN')
             end do
+        else
+            open(640, file=dir//'/PressureElevation.6p', status='UNKNOWN')
+        end if
+        if (numbodies > 1) then
+            open(66, file=dir//'/PressureElevationIncidence.6p', status='UNKNOWN')
         end if
     end subroutine CreateWamitFiles
 
