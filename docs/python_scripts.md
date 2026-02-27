@@ -19,10 +19,13 @@ HAMS_InputOutput/
         ├── Multibodies_HAMS.py
         ├── Obtaining_RAOs_from_HAMS_PA_array.py
         └── post_processing_HAMS_multibodies.py
+HAMS_to_WECSim/
+├── HAMS_to_WECSim.py
+└── postprocessing_functions_Mat.py
 generalized_modes.py
 ```
 
-Dependencies: `numpy`, `matplotlib`, `shapely`.
+Dependencies: `numpy`, `matplotlib`, `shapely`. The WEC-Sim conversion scripts additionally use `cmath`, `os`, and `datetime` (all standard library).
 
 ## Input Generation
 
@@ -94,6 +97,20 @@ Dependencies: `numpy`, `matplotlib`, `shapely`.
 where `M`, `A`, `B`, `K` are `6N × 6N` block-diagonal matrices (N = number of bodies) and `Fₑ` is the `6N × 1` excitation force vector. The resulting RAOs are written to a text file in WAMIT format.
 
 
+### Multi-Body (Matrix-Based Variant)
+
+**`postprocessing_functions_Mat.py`** provides an alternative set of multi-body postprocessing functions with a simplified interface tailored for matrix-based workflows (e.g. WEC-Sim conversion). The functions mirror those in `post_processing_HAMS_multibodies.py` but omit wave-direction indexing, assuming a single wave heading. Key functions:
+
+- `get_mass_and_damping_matrices_hams_multibodies(added_mass_file_location, added_damping_file_location, dof)` — reads HAMS output files and returns the frequency list, added mass coefficients, and radiation damping coefficients for a given DOF.
+- `get_external_force_hams_multibodies(external_force_file_location, column)` — reads excitation force values for a given column (real or imaginary part).
+- `compile_mass_damping_matrices_multiple_bodies(n_bodies, length_lists, added_mass_final, radiation_damping_final)` — reorganizes raw coefficient lists into compiled format indexed by body pair. Returns lists of size `n_bodies²`.
+- `compile_excitation_force_matrix_multiple_bodies(n_bodies, length_lists, exciting_force_final)` — reorganizes excitation force lists indexed by body. Returns a list of size `n_bodies`.
+- `hydrodynamic_coefficients_exciting_forces_all_bodies(...)` — main function that reads all HAMS output files for a DOF, optionally strips zero/infinite frequency entries, constructs complex excitation forces from real and imaginary parts, and returns the compiled matrices.
+- `hydrodynamic_coefficients_exciting_forces_all_bodies_zero_inf(...)` — same as above but returns only the zero and infinite frequency coefficients.
+- `obtain_specific_coefficient_matrix(added_mass_compiled, radiation_damping_compiled, n_bodies, x, y)` — retrieves added mass and radiation damping for a specific body pair (`x`, `y`).
+- `obtain_specific_exciting_force_matrix(exciting_force_compiled, x)` — retrieves excitation force for a specific body `x`.
+
+
 ## Generalized Modes
 
 **`generalized_modes.py`** computes generalized mode shape functions for use with the generalized modes feature in HAMS-MREL. The script produces `gen_mod_{body}_{dof}.txt` files that can be placed in the input directory to override standard rigid-body normals. See the [Input Files](input_files.md#gen_mod-optional) documentation for details on how these files are read by the Fortran code.
@@ -108,3 +125,33 @@ The script contains the following functions:
 - `compute_generalized_normal(centroids_global, nx, ny, nz)` — evaluates the generalized mode shape function at each panel centroid as `n_j = nx * X + ny * Y + nz * Z`.
 
 The user sets the mesh file, control file, DOF, and shape function components (`nx`, `ny`, `nz`) as variables in `main()`, then runs the script to produce the output file.
+
+
+## HAMS to WEC-Sim Conversion
+
+**`HAMS_to_WECSim.py`** converts HAMS-MREL multi-body results into a WAMIT-format `.out` file that can be used as input for WEC-Sim. The script imports postprocessing functions from `postprocessing_functions_Mat.py` and contains the `HAMS_to_WAMIT` class with the following methods:
+
+- `__init__(filename, hams_result_folder, hams_input_folder, rho)` — initializes the converter with output filename, HAMS directory paths, and water density (default 1000 kg/m³).
+- `create_initial_wamit_output()` — writes the WAMIT-format header block to the output file, including MREL attribution.
+- `get_number_of_bodies()` — reads the number of bodies from `ControlFile.in`.
+- `get_frequency_information(g)` — parses all simulation parameters from `ControlFile.in` including frequencies, headings, body positions (LCS), rotation centers, water depth, and panel counts. Converts between frequency types (wave number, frequency, period) for all four HAMS input frequency types. Stores period, wavenumber, and angular frequency lists for WAMIT output formatting.
+- `obtain_wavenumber_shallow_water(period, depth, g)` — iterative shallow-water dispersion solver that computes the wavenumber from wave period and water depth.
+- `hams_to_wamit_coefficient_conversion(body_number_1, body_number_2, dof_1, dof_2)` — maps body/DOF pairs to global indices in the combined `6N` system used by WAMIT.
+- `hams_to_wamit_coefficient_conversion_excitation(body_number_1, dof_1)` — maps body/DOF to a global excitation force index.
+- `create_hams_compiled_results_for_wamit(hams_output_location, run)` — reads all HAMS output files, compiles hydrodynamic coefficients (added mass, radiation damping) and excitation forces across all DOF combinations, and writes them to individual text files in `Results_full_HAMS/`. Excitation forces are stored as magnitude and phase.
+- `create_hams_compiled_results_for_wamit_zero_inf(hams_output_location, run)` — same as above but for zero and infinite frequency added mass only, writing to `Results_full_HAMS_inf_zero/`.
+- `compile_hams_results_per_frequency_for_wamit(run)` — reads the compiled results from `Results_full_HAMS/` and reorganizes them into per-frequency files in `Results_frequency_HAMS/`, with one coefficient file and one excitation file per frequency.
+- `compile_hams_results_per_frequency_for_wamit_zero_inf(run)` — same as above for zero/infinite frequencies, writing to `Results_frequency_HAMS_inf_zero/`.
+- `add_input_file_description()` — writes the WAMIT input file description block listing hull mesh files.
+- `add_frequency_information()` — writes the frequency table, gravity, water depth, solver parameters, and symmetry information in WAMIT format.
+- `add_hydrostatic_data(volumes, hydrostatic, center_of_gravity, center_of_bouyancy, g)` — writes per-body hydrostatic data including displaced volumes, center of buoyancy, hydrostatic restoring coefficients (non-dimensionalized by `ρg`), center of gravity, and radii of gyration.
+- `add_added_mass_zero_inf()` — writes the zero and infinite frequency added mass coefficient blocks, non-dimensionalized by `ρ`.
+- `add_hydrodynamic_coefficients_per_frequency(omega_number)` — writes the added mass (non-dimensionalized by `ρ`) and radiation damping (non-dimensionalized by `ρω`) for a given frequency.
+- `add_excitation_forces_per_frequency(omega_number, g)` — writes the diffraction exciting force magnitude (non-dimensionalized by `ρg`) and phase for a given frequency and wave heading.
+- `add_hydrodynamic_coefficients_excitation_forces()` — loops over all frequencies and writes the combined coefficient and excitation force blocks.
+- `add_initial_output_info()` — writes the WAMIT FORCE run header.
+
+The script includes a two-stage execution workflow controlled by flags at the bottom:
+
+1. **`create_data_from_HAMS`** — reads raw HAMS output, compiles all DOF combinations, and produces intermediate per-frequency result files.
+2. **`create_final_WECSIM_files`** — reads the intermediate files and assembles the final WAMIT `.out` file with user-specified hydrostatic data, volumes, and centers of gravity/buoyancy.
