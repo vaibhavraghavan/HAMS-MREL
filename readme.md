@@ -67,14 +67,15 @@ If you use HAMS‑MREL in your research, please cite:
 
 > Raghavan, V., Loukogeorgaki, E., Mantadakis, N., Metrikine, A. V., & Lavidas, G. (2024). _HAMS‑MREL, a new open‑source multiple body solver for marine renewable energies: Model description, application and validation._ Renewable Energy, 237, 127857. [https://doi.org/10.1016/j.renene.2024.121577](https://doi.org/10.1016/j.renene.2024.121577)
 
-> Yingyi Liu (2019). _HAMS: A Frequency-Domain Preprocessor for Wave-Structure Interactions—Theory, Development, and Application._ Journal of Marine Science and Engineering, 7: 81. [https://doi.org/10.3390/jmse7030081](https://doi.org/10.3390/jmse7030081)
+> Raghavan, V., Metrikine, A.V. & Lavidas, G. Theory and validation of the new features in BIEM solver HAMS-MREL. J. Ocean Eng. Mar. Energy 12, 53–71 (2026). [https://doi.org/10.1007/s40722-025-00431-8]
 
 ## License
 
-HAMS-MREL is available under the <> license. 
+HAMS-MREL is available under the Apache 2.0 license. 
 
 ## Contact
 
 HAMS‑MREL was developed by Vaibhav Raghavan. For questions, please contact the author at <email>. Users are encouraged to open a new issue in this repository to report bugs, request new features, or suggest improvements.
 
-Tis work is part of the TU Delft Marine Renewable Energies Lab (MREL). Learn more about the laboratory [here](https://www.tudelft.nl/en/ceg/about-faculty/departments/hydraulic-engineering/sections/offshore-engineering/research/marine-renewable-energies-lab-mrel).
+This work is part of the TU Delft Marine Renewable Energies Lab (MREL). Learn more about the laboratory [here](https://www.tudelft.nl/en/ceg/about-faculty/departments/hydraulic-engineering/sections/offshore-engineering/research/marine-renewable-energies-lab-mrel). The HAMS-MREL was supported by Yasel Quintero Lares from the Digital Competence Centre, Delft University of Technology.  
+
