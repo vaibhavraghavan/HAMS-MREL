@@ -2,7 +2,7 @@
 
 HAMS-MREL (Hydrodynamic Analysis of Marine Structures – Marine Renewable Energies Lab) is an open-source numerical tool for studying wave–structure interactions involving multiple floating bodies. It uses a Boundary Integral Equation Method to compute hydrodynamic coefficients, wave excitation forces, and related quantities for diffraction and radiation problems. The software includes OpenMP-based parallelization to improve computational efficiency and has been validated against WAMIT for a range of multi-body test cases.
 
-HAMS-MREL is developed as an extension of the original [HAMS solver](https://github.com/YingyiLiu/HAMS). While HAMS focuses on single-body hydrodynamic analysis, HAMS-MREL expands the framework to handle interactions among multiple bodies.
+HAMS-MREL is developed as an extension of the original [HAMS solver](https://github.com/YingyiLiu/HAMS). While HAMS focuses on single-body hydrodynamic analysis, HAMS-MREL expands the framework to handle interactions among multiple bodies. Other features include free surface elevation and pressure fields, suppression of irregular frequencies, global symmetry, and generalized modes.
 
 Current version: 2.0
 
@@ -76,9 +76,9 @@ HAMS-MREL is available under the Apache 2.0 license.
 
 ## Contact
 
-HAMS‑MREL was developed by Vaibhav Raghavan. For questions, please contact the author at <email>. Users are encouraged to open a new issue in this repository to report bugs, request new features, or suggest improvements.
+HAMS‑MREL was developed by Vaibhav Raghavan. For questions, please contact the author at vaibhav.raghavan@gmail.com. Users are encouraged to open a new issue in this repository to report bugs, request new features, or suggest improvements.
 
-This work is part of the TU Delft Marine Renewable Energies Lab (MREL). Learn more about the laboratory [here](https://www.tudelft.nl/en/ceg/about-faculty/departments/hydraulic-engineering/sections/offshore-engineering/research/marine-renewable-energies-lab-mrel). 
+This work is part of the TU Delft Marine Renewable Energies Lab (MREL) led by George Lavidas (G.Lavidas@tudelft.nl). Learn more about the laboratory [here](https://www.tudelft.nl/en/ceg/about-faculty/departments/hydraulic-engineering/sections/offshore-engineering/research/marine-renewable-energies-lab-mrel). 
 
 HAMS-MREL was supported by Yasel Quintero Lares from the Digital Competence Centre, Delft University of Technology.  
 
