@@ -123,11 +123,19 @@ CONTAINS
 !   !   and on the inner water plane for all bodies
 
 
-      SUBROUTINE CalNormalsMulti(BODY_N,IFLAG)
+      SUBROUTINE CalNormalsMulti(BODY_N,IFLAG,INPUTDIR)
       IMPLICIT   NONE
 
       INTEGER IEL,IND
       INTEGER,INTENT(IN):: BODY_N,IFLAG
+      CHARACTER(LEN=*),INTENT(IN):: INPUTDIR
+
+      ! Local variables for generalized modes
+      INTEGER:: GEN_DOF, GEN_PID, GEN_IEL, GEN_IOST
+      REAL*8:: GEN_NORMAL
+      CHARACTER(LEN=512):: GEN_FILENAME
+      CHARACTER(LEN=10):: BODY_STR, DOF_STR
+      LOGICAL:: GEN_FILE_EXISTS
 
 ! -------------------------------------------------------------------------
 ! 
@@ -159,6 +167,42 @@ CONTAINS
        ENDIF
       ENDIF 
 !
+! -------------------------------------------------------------------------
+!     Read generalized mode normals from gen_mod files if present
+!     File naming convention: gen_mod_{body_number}_{dof}.txt
+!     File format per line:   panel_id    normal_value
+! -------------------------------------------------------------------------
+
+      WRITE(BODY_STR,'(I0)') BODY_N
+
+      DO GEN_DOF = 1, 6
+        WRITE(DOF_STR,'(I0)') GEN_DOF
+        GEN_FILENAME = TRIM(INPUTDIR)//'/gen_mod_'// &
+                        TRIM(ADJUSTL(BODY_STR))//'_'// &
+                        TRIM(ADJUSTL(DOF_STR))//'.txt'
+
+        INQUIRE(FILE=TRIM(GEN_FILENAME), EXIST=GEN_FILE_EXISTS)
+
+        IF (GEN_FILE_EXISTS) THEN
+          PRINT *, ' Found generalized mode file: ', TRIM(GEN_FILENAME)
+          PRINT *, '   Overriding DOF ', GEN_DOF, ' normals for body ', BODY_N
+
+          OPEN(99, FILE=TRIM(GEN_FILENAME), STATUS='OLD', ACTION='READ')
+
+          DO GEN_IEL = 1, NELEM_MULTI(BODY_N)
+            READ(99, *, IOSTAT=GEN_IOST) GEN_PID, GEN_NORMAL
+            IF (GEN_IOST .NE. 0) THEN
+              PRINT *, '  Warning: Could not read line ', GEN_IEL, &
+                       ' from ', TRIM(GEN_FILENAME)
+              EXIT
+            ENDIF
+            DXYZ_MULTI_P(BODY_N, GEN_PID, GEN_DOF) = GEN_NORMAL
+          ENDDO
+
+          CLOSE(99)
+          PRINT *, '   Loaded ', NELEM_MULTI(BODY_N), ' generalized normals.'
+        ENDIF
+      ENDDO
 
       RETURN
       END SUBROUTINE CalNormalsMulti

@@ -107,11 +107,19 @@ CONTAINS
 !   !   and on the inner water plane
 
 
-      SUBROUTINE CalNormals(IFLAG)
+      SUBROUTINE CalNormals(IFLAG,INPUTDIR)
       IMPLICIT   NONE
 
       INTEGER IEL,IND
       INTEGER,INTENT(IN):: IFLAG
+      CHARACTER(LEN=*),INTENT(IN):: INPUTDIR
+
+      ! Local variables for generalized modes
+      INTEGER:: GEN_DOF, GEN_PID, GEN_IEL, GEN_IOST
+      REAL*8:: GEN_NORMAL
+      CHARACTER(LEN=512):: GEN_FILENAME
+      CHARACTER(LEN=10):: DOF_STR
+      LOGICAL:: GEN_FILE_EXISTS
 
 ! -------------------------------------------------------------------------
 ! 
@@ -140,6 +148,40 @@ CONTAINS
          CALL CalRotNormals(XR,iXYZ_P,IDXYZ_P,INELEM)
       ENDIF
 !
+! -------------------------------------------------------------------------
+!     Read generalized mode normals from gen_mod files if present
+!     File naming convention: gen_mod_1_{dof}.txt  (body number is always 1)
+!     File format per line:   panel_id    normal_value
+! -------------------------------------------------------------------------
+
+      DO GEN_DOF = 1, 6
+        WRITE(DOF_STR,'(I0)') GEN_DOF
+        GEN_FILENAME = TRIM(INPUTDIR)//'/gen_mod_1_'// &
+                        TRIM(ADJUSTL(DOF_STR))//'.txt'
+
+        INQUIRE(FILE=TRIM(GEN_FILENAME), EXIST=GEN_FILE_EXISTS)
+
+        IF (GEN_FILE_EXISTS) THEN
+          PRINT *, ' Found generalized mode file: ', TRIM(GEN_FILENAME)
+          PRINT *, '   Overriding DOF ', GEN_DOF, ' normals for body 1'
+
+          OPEN(99, FILE=TRIM(GEN_FILENAME), STATUS='OLD', ACTION='READ')
+
+          DO GEN_IEL = 1, NELEM
+            READ(99, *, IOSTAT=GEN_IOST) GEN_PID, GEN_NORMAL
+            IF (GEN_IOST .NE. 0) THEN
+              PRINT *, '  Warning: Could not read line ', GEN_IEL, &
+                       ' from ', TRIM(GEN_FILENAME)
+              EXIT
+            ENDIF
+            DXYZ_P(GEN_PID, GEN_DOF) = GEN_NORMAL
+          ENDDO
+
+          CLOSE(99)
+          PRINT *, '   Loaded ', NELEM, ' generalized normals.'
+        ENDIF
+      ENDDO
+
       Print *,' Calculating panel normals is finished...'
       Print * 
 !

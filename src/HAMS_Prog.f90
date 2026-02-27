@@ -240,7 +240,7 @@ program HAMS_MREL
 
         call CreateErrorCheckFile(trim(outputdir), NBODY)
        
-        CALL CalNormals(IRSP)
+        CALL CalNormals(IRSP,TRIM(inputdir))
 
         DO MD1=1,5
             CLOSE(MD1)
@@ -532,7 +532,7 @@ program HAMS_MREL
             ! There are changes to the size of the arrays based on the irregular frequency removal
             ALLOCATE(AMAT_MULTI(TNELEM,TNELEM,NSYS),BRMAT_MULTI(TNELEM,6*NBODY,NSYS),BDMAT_MULTI(TNELEM,NSYS),IPIV_MULTI_COMB(NELEM_TOTAL,NSYS))
             ALLOCATE(CGRN_MULTI_COMB(NELEM_TOTAL,NELEM_TOTAL,NSYS,4),RKBN_MULTI_COMB(NELEM_TOTAL,NELEM_TOTAL,NSYS,4)) ! These calculations are done for combination of all elements in all bodies together
-            ALLOCATE(MXPOT_MULTI_COMB(NELEM_TOTAL,6*NBODY+1,NSYS),WVFQ(NPER),EXFC_MULTI(NBODY,NPER,NBETA,6),DSPL_MULTI(NBODY,NPER,NBETA,6),AMAS_MULTI(NPER,NBODY,6,6),BDMP_MULTI(NPER,NBODY,6,6),AMAS_MULTI_COMB(NPER,NBODY*6,NBODY*6),BDMP_MULTI_COMB(NPER,NBODY*6,NBODY*6))
+            ALLOCATE(MXPOT_MULTI_COMB(NELEM_TOTAL,6*NBODY+1,NSYS),WVFQ(NPER),EXFC_MULTI(NBODY,NPER,NBETA,6),EXFC_MULTI_COMB(NPER,NBETA,NBODY*6), DSPL_MULTI(NBODY,NPER,NBETA,6),DSPL_MULTI_COMB(NPER,NBETA,NBODY*6),AMAS_MULTI(NPER,NBODY,6,6),BDMP_MULTI(NPER,NBODY,6,6),AMAS_MULTI_COMB(NPER,NBODY*6,NBODY*6),BDMP_MULTI_COMB(NPER,NBODY*6,NBODY*6))
             ALLOCATE(BLNR_MULTI(NBODY,6,6),BQDR_MULTI(NBODY,6,6))
             ALLOCATE(XYZ_GLOBAL_MULTI_COMB(NTND_TOTAL,3),XYZ_GLOBAL_MULTI_COMB_P(NELEM_TOTAL,3),PNSZ_MULTI_COMB(NELEM_TOTAL),NCN_MULTI_COMB(NELEM_TOTAL),NCON_MULTI_COMB(NELEM_TOTAL,4))
             ALLOCATE(DS_MULTI_COMB(NELEM_TOTAL),DXYZ_MULTI_COMB(NELEM_TOTAL,6))
@@ -560,7 +560,7 @@ program HAMS_MREL
             OPEN(4, FILE=HYDROSTATIC_MULTI, STATUS='UNKNOWN', action='READ')
             CALL ReadHydroStaticMulti(FILE_M,NBODY)
             CLOSE(4)
-            CALL CalNormalsMulti(FILE_M,IRSP)                                                      ! This is implemented for no removal of irregular frequencies at this point
+            CALL CalNormalsMulti(FILE_M,IRSP,TRIM(inputdir))                                                      ! This is implemented for no removal of irregular frequencies at this point
         ENDDO
        
 
