@@ -1,0 +1,122 @@
+# Packages to be imported
+import os
+import numpy as np
+from HAMS_single_bodies import create_control_file_hams,create_hydrostatic_file
+
+##############################################CREATING THE CONTROL FILE#################################################
+
+# Parameters to be filled in
+file_location = os.getcwd()  # File location of analysis
+depth = 200.0                # Water depth
+zero_inf_limits = 1         # If zero and infinite frequencies should be evaluated - 1: Evaluate, 0: Do not evaluate
+input_frequency_type = 4    # Input frequency type - 1:deepwater wave number; 2:finite-depth wave number; 3:wave frequency; 4:wave period; 5:wave length
+output_frequency_type = 4   # Output frequency type - Same as input frequency type
+number_frequencies = -24    # Number of frequencies to be evaluated - If negative value is input, a minimum frequency and frequency step should be provided; If positive, explicitly provide the frequencies to be evaluated
+minimum_frequency = 0.5     # In case of negative number_frequencies, this is the minimum frequency from which the diffraction radiation calculation will start
+frequency_step = 0.5        # In case of negative number_frequencies, this is the frequency step
+number_headings = -37         # Number of headings for the input wave
+minimum_heading = -180.0      # Minimum wave heading angle in degrees
+heading_step = 10.0           # heading step for subsequent wave headings
+reference_body_center = [0.0,0.0,0.0]  # Center of rotation for the body. This is the point about which the rotation degrees of freedom are evaluated.
+reference_body_length = 1.0 # Reference body length, default is 1
+wave_diffraction_solution = 1 # Wave diffraction solution type, default is 1 which will evaluate the diffraction+incident wave potential, 2 will give only the diffraction potential
+remove_irr_freq = 1 # Removal of irregular frequencies; If 1, these will be removed
+number_of_threads = 20 # Number of threads for OpenMP parallelization
+
+# # If positive input for frequencies (In this case, please use the 'frequency_list' parameter of the function
+# create_control_file_hams
+
+# number_frequencies = 5
+# frequency_list = [1,2,3,4,5]
+
+# Add pressure elevation input
+
+# Option 1
+number_pressure_elevation_points = 1
+pressure_elevation_input = [[0, 0, 0]]
+
+# # Option 2
+# pressure_elevation_input = []
+# x_grid,y_grid = np.linspace(-100.0, 100.0, 100), np.linspace(-100.0, 100.0, 100)
+# for i in range(len(x_grid)):
+#     for j in range(len(y_grid)):
+#         pressure_elevation_input.append([x_grid[i], y_grid[j], 0.0])
+# number_pressure_elevation_points = len(pressure_elevation_input)
+
+create_control_file_hams(file_location=file_location,
+          depth=depth,
+          zero_inf_limits=zero_inf_limits,
+          input_frequency_type=input_frequency_type,
+          output_frequency_type=output_frequency_type,
+          number_frequencies=number_frequencies,
+          minimum_frequency=minimum_frequency,
+          frequency_step=frequency_step,
+          number_headings=number_headings,
+          reference_body_center=reference_body_center,
+          reference_body_length=reference_body_length,
+          wave_diffraction_solution=wave_diffraction_solution,
+          remove_irr_freq=remove_irr_freq,
+          number_of_threads=number_of_threads,
+          number_pressure_elevation_points=number_pressure_elevation_points,
+          pressure_elevation_input=pressure_elevation_input,
+                         minimum_heading=minimum_heading,
+                         heading_step=heading_step)
+
+##############################################CREATING THE HYDROSTATIC FILE#############################################
+
+# Parameters to be filled in
+center_of_gravity = [0.0, 0.0, 0.0] # Center of gravity
+body_mass_matrix = [[0,    0,    0,    0,    0,    0],
+                    [0,    0,    0,    0,    0,    0],
+                    [0,    0,    0,    0,    0,    0],
+                    [0,    0,    0,    0,    0,    0],
+                    [0,    0,    0,    0,    0,    0],
+                    [0,    0,    0,    0,    0,    0]]
+external_linear_damping_matrix = list(np.zeros((6, 6))) # External damping matrix
+external_quadratic_damping_matrix = list(np.zeros((6, 6))) # External quadratic damping matrix (eg. in case of viscous damping)
+hydrostatic_restoring_matrix = [[0,    0,    0,    0,    0,    0],
+                                [0,    0,    0,    0,    0,    0],
+                                [0,    0,    0,    0,    0,    0],
+                                [0,    0,    0,    0,    0,    0],
+                                [0,    0,    0,    0,    0,    0],
+                                [0,    0,    0,    0,    0,    0]]
+                                # Hydrostatic restoring matrix
+
+external_restoring_matrix = [[0,    0,    0,    0,    0,    0],
+                             [0,    0,    0,    0,    0,    0],
+                             [0,    0,    0,    0,    0,    0],
+                             [0,    0,    0,    0,    0,    0],
+                             [0,    0,    0,    0,    0,    0],
+                             [0,    0,    0,    0,    0,    0]]
+                             # External restoring matrix
+create_hydrostatic_file(file_location=file_location,
+                        center_of_gravity=center_of_gravity, body_mass_matrix=body_mass_matrix,
+                        external_linear_damping_matrix=external_linear_damping_matrix,
+                        external_quadratic_damping_matrix=external_quadratic_damping_matrix,
+                        hydrostatic_restoring_matrix = hydrostatic_restoring_matrix,
+                        external_restoring_matrix = external_restoring_matrix)
+
+##############################################CREATING THE REMAINING FOLDERS AND FILES##################################
+if not os.path.isdir('Input'):
+    os.makedirs('Input')
+if not os.path.isdir('Output'):
+    os.makedirs('Output')
+if os.path.isfile('ControlFile.in'):
+    os.replace('ControlFile.in','Input/ControlFile.in')
+else:
+    print('The ControlFile is not found. Please check.')
+if os.path.isfile('Hydrostatic.in'):
+    os.replace('Hydrostatic.in','Input/Hydrostatic.in')
+else:
+    print('The Hydrostatic file is not found. Please check.')
+
+if os.path.isdir('Output'):
+    if not os.path.isdir('Output/Hams_format'):
+        os.makedirs('Output/Hams_format')
+    if not os.path.isdir('Output/Hydrostar_format'):
+        os.makedirs('Output/Hydrostar_format')
+    if not os.path.isdir('Output/Wamit_format'):
+        os.makedirs('Output/Wamit_format')
+    if not os.path.isfile('Output/ErrorCheck.txt'):
+        f=open("Output/ErrorCheck.txt", "w")
+        f.close()

@@ -1,0 +1,68 @@
+name: Windows Build and Test
+
+# Workflow triggers tell GitHub when to run the workflow:
+# a) when there is a new commit on the main or develop branch
+# b) when a new pull request is opened to merge a branch into main or develop
+on:
+  push:
+    branches: [ "main", "develop"]
+  pull_request:
+    branches: [ "main", "develop"]
+
+# This workflow defines one job: build-and-test
+jobs:
+  build-and-test:
+    
+    # Use windows-latest runner.
+    # See https://github.com/actions/runner-images for a list of available runners.
+    runs-on: windows-latest
+    
+    steps:
+
+      # Checkout a copy of this repository on the runner
+      # We use the "checkout" GitHub Action
+      # https://github.com/actions/checkout
+      - uses: actions/checkout@v4
+
+      # Download the Intel Fortran compiler and oneMKL library
+      - name: Download Intel dependencies
+        run: |
+          curl -L -o intel-fortran-essentials-2025.1.0.555_offline.exe https://registrationcenter-download.intel.com/akdlm/IRC_NAS/6ccdad73-60b6-4758-bc1a-a5ff368e9cf0/intel-fortran-essentials-2025.1.0.555_offline.exe
+
+      # Install the Intel Fortran compiler and oneMKL library on the runner
+      # i.e. run the installer downloaded in the previous step
+      - name: Install Intel dependencies
+        shell: bash
+        run: |
+          ./intel-fortran-essentials-2025.1.0.555_offline.exe -a --silent --eula accept -p=NEED_VS2017_INTEGRATION=0 -p=NEED_VS2019_INTEGRATION=0 -p=NEED_VS2022_INTEGRATION=0
+
+      # Run the setvars.bat script provided by Intel
+      # This script adds Intel compilers and libraries to the runner's path
+      - name: Add Intel compilers and libraries to path
+        shell: cmd
+        run: |
+          call "C:\Program Files (x86)\Intel\oneAPI\setvars.bat"
+          set | findstr /c:"oneAPI" >> "%GITHUB_ENV%"
+          
+      # Install Fortran Package Manager (FPM) on the runner
+      # We use the "setup-fpm" GitHub Action
+      # https://github.com/marketplace/actions/setup-fortran
+      - uses: fortran-lang/setup-fpm@v7
+          
+      # Configure Fortran Package Manager (FPM) environment variables
+      # FPM will use these variables to determine which compiler and compiler flags to use
+      # FPM_FC = Fortran compiler
+      # FPM_FFLAGS = Fortran compiler flags
+      # We add the variables to GITHUB_ENV so that they are available to fpm in the next steps
+      - name: Configure FPM variables and export them
+        shell: cmd
+        run: |
+          set FPM_FC=ifx
+          echo FPM_FC=%FPM_FC% >> "%GITHUB_ENV%"
+          set FPM_FFLAGS=/Qmkl
+          echo FPM_FFLAGS=%FPM_FFLAGS% >> "%GITHUB_ENV%"
+
+      # Compile HAMS-MREL using FPM
+      - name: Compile HAMS-MREL
+        run: |
+          fpm build
