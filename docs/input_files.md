@@ -5,6 +5,7 @@ HAMS-MREL requires a set of input files to run. The number files depend on wheth
 - `Hydrostatic[_i].in`
 - `HullMesh[_i].pnl`
 - `WaterPlaneMesh[_i].pnl` (only if analyzing irregular frequencies)
+- `gen_mod_[i]_[dof].txt` (optional, for generalized modes)
 
 For multi-body cases, `_i` denotes the body number (`i = 1 … numberofbodies`). For a single body, no index is used (`HullMesh.pnl`, `Hydrostatic.in` and `WaterPlaneMesh.pnl`).
 
@@ -172,3 +173,32 @@ Node and element data on the inner water plane for multiple bodies are specified
 The files are read in [HAMS_Prog.f90](../src/HAMS_Prog.f90) and in the subroutine `ReadWTPLMeshMulti` in [ReadPanelMeshMulti.f90](../src/ReadPanelMeshMulti.f90). The file structure is exactly the same as the one for the HullMesh.pnl files, which is described above.
 
 The node coordinates of the waterplane mesh are stored in `iXYZ_LOCAL_MULTI(bodyID,nodeID,1:3)`. The number of vertices in each panel is stored in `iNCN_MULTI(bodyID,nodeID)` and the vertices (vertex1, vertex2, ...) are stored in `iNCON_MULTI(bodyID,nodeID,1:numvertices)`.
+
+
+## gen_mod (Optional)
+
+Generalized mode files allow users to override one or more of the standard six rigid-body normals (surge, sway, heave, roll, pitch, yaw) with a custom shape function for any body. This enables the use of generalized modes within the BEM framework — for example, replacing a rigid-body DOF with a hinge rotation or a flexible deformation mode. There is at most one file per body per DOF. These files are optional; if no file is present for a given body and DOF, the standard rigid-body normal is retained. This approach is utilized since often times, not all 6 DOFs of a body are utilized.
+
+The files are read in the subroutine `CalNormals` in [ReadPanelMesh.f90](../src/ReadPanelMesh.f90) for single-body cases and `CalNormalsMulti` in [ReadPanelMeshMulti.f90](../src/ReadPanelMeshMulti.f90) for multi-body cases. After the standard translational and rotational normals are computed, the program scans the input directory for generalized mode files. If a file is found, the corresponding column in `DXYZ_P` (single-body) or `DXYZ_MULTI_P` (multi-body) is overwritten with the values from the file.
+
+The files must be placed in the same input directory as the other input files and follow the naming convention:
+
+```
+gen_mod_{body_number}_{dof}.txt
+```
+
+where `body_number` is the body index (always `1` for single-body cases; `1, 2, ...` for multi-body cases) and `dof` is the degree of freedom to override (`1` = surge, `2` = sway, `3` = heave, `4` = roll, `5` = pitch, `6` = yaw). For example, `gen_mod_1_3.txt` overrides heave normals for body 1 and `gen_mod_2_5.txt` overrides pitch normals for body 2.
+
+A few notes:
+- The number of lines must match the number of panels (`NELEM`) for the corresponding body.
+- Panel IDs must match the panel numbering in the corresponding `HullMesh` file.
+- Numbers in each line are separated by whitespace and read with free format.
+
+| Column | Format | Variable | Description |
+| :----- | :----- | :------- | :---------- |
+| 1 | free | `GEN_PID` | Panel ID |
+| 2 | free | `GEN_NORMAL` | Generalized normal value for that panel |
+
+### Generating Generalized Mode Files
+
+A Python helper script (`generalized_modes.py`) is provided to generate these files. The script reads the hull mesh file (`HullMesh[_i].pnl`), computes panel centroid coordinates, reads the LCS from `ControlFile.in` for the corresponding body and transforms the centroids to global coordinates. The generalized normal at each panel centroid is then computed as `n_j = nx * X + ny * Y + nz * Z`, where `X`, `Y`, `Z` are the global centroid coordinates and `nx`, `ny`, `nz` are the user-defined shape function components. The body number is extracted automatically from the mesh filename (e.g., `HullMesh_2.pnl` → body 2).
