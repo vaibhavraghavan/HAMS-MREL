@@ -62,11 +62,11 @@ HAMS-MREL produces output files in multiple established formats to support post-
 
 Additional developer-focused documentation is available in [`docs/developer_documentation.md`](docs/developer_documentation.md). This includes details on the test suite, the GitHub Actions continuous integration pipeline and results from memory profiling analysis.
 
-## Citation
+## How to cite
 
 If you use HAMS‑MREL in your research, please cite:
 
-> Raghavan, V., Loukogeorgaki, E., Mantadakis, N., Metrikine, A. V., & Lavidas, G. (2024). _HAMS‑MREL, a new open‑source multiple body solver for marine renewable energies: Model description, application and validation._ Renewable Energy, 237, 127857. [https://doi.org/10.1016/j.renene.2024.121577](https://doi.org/10.1016/j.renene.2024.121577)
+> Raghavan, V., Loukogeorgaki, E., Mantadakis, N., Metrikine, A. V., & Lavidas, G. (2024). _HAMS‑MREL, a new open‑source multiple body solver for marine renewable energies: Model description, application and validation._ Renewable Energy, 237, 127857. [https://doi.org/10.1016/j.renene.2024.121577]
 
 > Raghavan, V., Metrikine, A.V. & Lavidas, G. Theory and validation of the new features in BIEM solver HAMS-MREL. J. Ocean Eng. Mar. Energy 12, 53–71 (2026). [https://doi.org/10.1007/s40722-025-00431-8]
 
@@ -82,3 +82,20 @@ This work is part of the TU Delft Marine Renewable Energies Lab (MREL) led by Ge
 
 HAMS-MREL was supported by Yasel Quintero Lares from the Digital Competence Centre, Delft University of Technology.  
 
+## Publications utilizing HAMS-MREL
+
+> Raghavan, V., Loukogeorgaki, E., Mantadakis, N., Metrikine, A. V., & Lavidas, G. (2024). _HAMS‑MREL, a new open‑source multiple body solver for marine renewable energies: Model description, application and validation._ Renewable Energy, 237, 127857. [https://doi.org/10.1016/j.renene.2024.121577]
+
+> Raghavan, V., Metrikine, A.V. & Lavidas, G. Theory and validation of the new features in BIEM solver HAMS-MREL. J. Ocean Eng. Mar. Energy 12, 53–71 (2026). [https://doi.org/10.1007/s40722-025-00431-8]
+
+> Raghavan, V., Simonetti, I., Metrikine, A. V., Lavidas, G., & Cappietti, L. (2024). A new numerical modelling framework for fixed oscillating water column wave energy conversion device combining BEM and CFD methods: Validation with experiments. Ocean Engineering, 301, 117543. [https://doi.org/10.1016/j.oceaneng.2024.117543]
+
+> Lavidas, G., Mezilis, L., Alday G., M., Baki, H., Tan, J., Jain, A., Engelfried, T., & Raghavan, V. (2025). Marine renewables in Energy Systems: Impacts of climate data, generators, energy policies, opportunities, and untapped potential for 100% decarbonised systems. Energy, 336, 138359. [https://doi.org/10.1016/j.energy.2025.138359]
+
+> Asiikkis, A. T., Raghavan, V., Grigoriadis, D. G. E., Metrikine, A. V., Lavidas, G., & Vakis, A. I. (2025). Experimental validation of time domain simulations with HAMS-MREL and comparative analysis of linear and weakly nonlinear models for dense WEC arrays. Ocean Engineering, 341, 122553. [https://doi.org/10.1016/j.oceaneng.2025.122553]
+
+> Alday, M., Raghavan, V., & Lavidas, G. (2025). Effects of wave spectrum representation on power production estimations from point absorbers. Applied Ocean Research, 161, 104626. [https://doi.org/10.1016/j.apor.2025.104626]
+
+> Engelfried, T., Alday, M., Raghavan, V., & Lavidas, G. (2026). Geospatial analysis of the life cycle global warming impacts from marine renewables. Renewable and Sustainable Energy Reviews, 226, 116338. [https://doi.org/10.1016/j.rser.2025.116338]
+
+Publications to follow...
