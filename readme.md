@@ -76,7 +76,7 @@ HAMS-MREL is available under the Apache 2.0 license.
 
 ## Contact
 
-HAMS‑MREL was developed by Vaibhav Raghavan. For questions, please contact the author at vaibhav.raghavan@gmail.com. Users are encouraged to open a new issue in this repository to report bugs, request new features, or suggest improvements.
+HAMS‑MREL was developed by Vaibhav Raghavan. For questions, please contact the author at vaibhav.raghavan@gmail.com. Users are encouraged to open a new issue in this repository to report bugs, request new features, or suggest improvements (Using Discussions).
 
 This work is part of the TU Delft Marine Renewable Energies Lab (MREL) led by George Lavidas (G.Lavidas@tudelft.nl). Learn more about the laboratory [here](https://www.tudelft.nl/en/ceg/about-faculty/departments/hydraulic-engineering/sections/offshore-engineering/research/marine-renewable-energies-lab-mrel). 
 
