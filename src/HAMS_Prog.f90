@@ -100,7 +100,7 @@ program HAMS_MREL
     print*
     write(*,'(80A)') ' ------------------------HAMS-MREL (Hydrodynamic Analysis of Marine Structures - Marine Renewable Energies Lab)---------------------'
     print*
-    write(*,'(20x,20A,10x)') '                                     Code Author for the multi-body formulations and implementations: Vaibhav RaghavanYingyi Liu'
+    write(*,'(20x,20A,10x)') '                                     Code Author for the multi-body formulations and implementations: Vaibhav Raghavan'
     print*
     write(*,'(20x,20A,10x)') '                                     Code Author for the single-body formulation: Yingyi Liu'
     print*
