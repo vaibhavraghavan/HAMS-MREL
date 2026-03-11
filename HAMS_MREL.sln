@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.32630.194
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "HAMS_original", "HAMS_original.vfproj", "{DCB99B0F-EB17-49E0-A672-CF5AF68F3860}"
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "HAMS_MREL", "HAMS_MREL.vfproj", "{DCB99B0F-EB17-49E0-A672-CF5AF68F3860}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

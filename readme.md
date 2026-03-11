@@ -6,6 +6,8 @@ HAMS-MREL is developed as an extension of the original [HAMS solver](https://git
 
 Current version: 2.0
 
+The binary for Windows is available in the **Bin** folder. Use it together with the available .dll file. This was compiled using ifort and Visual Studio 2022. 
+
 ## Installation and Usage
 
 Installation instructions are provided for:

@@ -29,21 +29,21 @@ You may obtain the HAMS-MREL source code using one of the following methods.
 
 - **Clone the repository using Git**: if Git is installed, open a Command Prompt or PowerShell and run:
 ```
-git clone https://github.com/vaibhavraghavan/HAMS-MREL-DCC.git
+git clone https://github.com/vaibhavraghavan/HAMS-MREL.git
 ```
 
-- **Download a ZIP archive**: Open the [GitHub repository](https://github.com/vaibhavraghavan/HAMS-MREL-DCC) in a web browser. Click "Code -> Download ZIP". Extract the contents of the ZIP file to a local directory of your choice.
+- **Download a ZIP archive**: Open the [GitHub repository](https://github.com/vaibhavraghavan/HAMS-MREL) in a web browser. Click "Code -> Download ZIP". Extract the contents of the ZIP file to a local directory of your choice.
 
 
 ## Step 3: Build and Execute HAMS-MREL using Visual Studio
 
-Launch Visual Studio. On the welcome screen, select "Open a project or solution", then open the Visual Studio solution file [HAMS_original.sln](../HAMS_original.sln) located in the root directory of the HAMS-MREL repository.
+Launch Visual Studio. On the welcome screen, select "Open a project or solution", then open the Visual Studio solution file [HAMS_MREL.sln](../HAMS_MREL.sln) located in the root directory of the HAMS-MREL repository.
 
 In the top toolbar, set:
 - **Configuration** to `Release`
 - **Platform** to `x64`
 
-Compile the application by selecting "Build -> Build Solution" from the top menu. The resulting executable `HAMS_original.exe` will be placed in the `HAMS-MREL-DCC/x64/Release` folder.
+Compile the application by selecting "Build -> Build Solution" from the top menu. The resulting executable `HAMS_MREL.exe` will be placed in the `HAMS-MREL/x64/Release` folder.
 
 **Running**
 

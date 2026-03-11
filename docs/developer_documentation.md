@@ -2,9 +2,9 @@
 
 This page contains information for the developers and mantainers of HAMS-MREL:
 
-- [Tests](https://github.com/vaibhavraghavan/HAMS-MREL-DCC/edit/develop/docs/developer_documentation.md#tests)
-- [Continous Integration](https://github.com/vaibhavraghavan/HAMS-MREL-DCC/edit/develop/docs/developer_documentation.md#continous-integration-in-github-actions)
-- [Profiling Results](https://github.com/vaibhavraghavan/HAMS-MREL-DCC/edit/develop/docs/developer_documentation.md#profiling-results)
+- [Tests](https://github.com/vaibhavraghavan/HAMS-MREL/edit/develop/docs/developer_documentation.md#tests)
+- [Continous Integration](https://github.com/vaibhavraghavan/HAMS-MREL/edit/develop/docs/developer_documentation.md#continous-integration-in-github-actions)
+- [Profiling Results](https://github.com/vaibhavraghavan/HAMS-MREL/edit/develop/docs/developer_documentation.md#profiling-results)
 
 ## Tests
 
