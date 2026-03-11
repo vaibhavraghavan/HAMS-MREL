@@ -243,7 +243,7 @@ program HAMS_MREL
             CLOSE(MD1)
         ENDDO
       
-        write(*,*) ' Number of geometrial symmetries:',ISYS
+        write(*,*) ' Number of geometrical symmetries:',ISYS
         write(*,*) ' Number of panels on the hull:   ',NELEM
         write(*,*) ' Number of panels on waterplanes:',INELEM
         PRINT*
