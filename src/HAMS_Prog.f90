@@ -766,7 +766,6 @@ program HAMS_MREL
         write(*,*) ' Congratulations! Your computation completes successfully.'
         write(*,*)
     end if
-	PAUSE
 
 end program HAMS_MREL
       
