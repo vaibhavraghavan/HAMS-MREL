@@ -1,4 +1,0 @@
- The rotation center for the bodies are input as (please confirm if it is correc
- t):
-       0.000       0.000       0.000
-       0.000      54.000       0.000
