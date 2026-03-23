@@ -23,6 +23,8 @@ After installation you must run the `setvars.bat` script to add the libraries to
 
 Visual Studio (Community, Professional, or Enterprise) must be installed with the "Desktop development for C++" workload. For more information see the [installation docs](https://learn.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2022).
 
+When using Visual Studio 2022 and 2026, do ensure that 'Properties/libraries/Runtime Library -> Multithread DLL' and 'Properties/libraries/Use Intel Math Kernel Library -> Parallel (/Qmkl:parallel)' are turned on.
+
 ## Step 2: Download HAMS-MREL
 
 You may obtain the HAMS-MREL source code using one of the following methods.
