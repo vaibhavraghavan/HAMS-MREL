@@ -82,7 +82,7 @@ Open a Command Prompt or PowerShell, navigate to the `src` directory of the repo
 ```shell
 cd <path-to-HAMS-MREL>\src
 
-gfortran -O3 -fopenmp -ffree-line-length-none -o hamsmrel.exe ^
+gfortran -O3 -fopenmp -ffree-line-length-none -o HAMS_MREL.exe ^
   WavDynMods.f90 InputFiles.f90 ^
   WavDynSubs.f90 PatclVelct.f90 FinGrnExtSubs.f90 InfGreen_Appr.f90 ^
   FinGreen3D.f90 SingularIntgr.f90 SingularIntgrMulti.f90 ^
