@@ -246,6 +246,13 @@ program HAMS_MREL
         write(*,*) ' Number of geometrical symmetries:',ISYS
         write(*,*) ' Number of panels on the hull:   ',NELEM
         write(*,*) ' Number of panels on waterplanes:',INELEM
+        IF (ISOLV .EQ. 1) THEN
+            write(*,*) ' Linear solver type:             Direct (LU)'
+        ELSE IF (ISOLV .EQ. 2) THEN
+            write(*,*) ' Linear solver type:             GMRES'
+        ELSE IF (ISOLV .EQ. 3) THEN
+            write(*,*) ' Linear solver type:             BiCGSTAB'
+        END IF
         PRINT*
         write(*,*) ' Radiation-diffraction computation starts...'
        
@@ -580,9 +587,16 @@ program HAMS_MREL
                 WRITE(*,'(A45,I2,A1,I10)') 'Number of panels on the water plane of body',FILE_M,':',iNELEM_MULTI(FILE_M)
             ENDDO
         ENDIF
+        IF (ISOLV .EQ. 1) THEN
+            WRITE(*,*) ' Linear solver type:             Direct (LU)'
+        ELSE IF (ISOLV .EQ. 2) THEN
+            WRITE(*,*) ' Linear solver type:             GMRES'
+        ELSE IF (ISOLV .EQ. 3) THEN
+            WRITE(*,*) ' Linear solver type:             BiCGSTAB'
+        END IF
         PRINT*
         WRITE(*,*) ' Radiation-diffraction computation starts...'
-       
+
         !Currently no printing of results in Hydrostar Formal
         !This would have to be extended for the total degrees of freedom, which will be NBODY*6
         !DO MD=1,6

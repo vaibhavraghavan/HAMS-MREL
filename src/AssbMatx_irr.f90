@@ -31,6 +31,7 @@ MODULE AssbMatx_irr
    
    USE BodyIntgr_irr
    USE PatcVelct
+   USE IterativeSolvers
    IMPLICIT NONE
    
       ! ..... Public Subroutines ...................................................................................................
@@ -170,11 +171,13 @@ CONTAINS
 !$OMP END PARALLEL
 6000   CONTINUE
 
+      IF (ISOLV .EQ. 1) THEN
 !$omp parallel do private(NTHREAD)
-       DO IP=1, NSYS
-          CALL ZGETRF( NELEM, NELEM, CMAT(:,:,IP), NELEM, IPIV(:,IP), INFO )
-       ENDDO
+         DO IP=1, NSYS
+            CALL ZGETRF( NELEM, NELEM, CMAT(:,:,IP), NELEM, IPIV(:,IP), INFO )
+         ENDDO
 !$omp end parallel do
+      ENDIF
 
       RETURN
       END SUBROUTINE ASSB_LEFT_IRR
@@ -520,14 +523,21 @@ CONTAINS
       
       ALLOCATE(CTMAT(NELEM,NELEM,NSYS),DRTMAT(NELEM,6,NSYS))
 
-      CTMAT=CMAT
-      DRTMAT=DRMAT
-      
+      IF (ISOLV .EQ. 1) THEN
+          CTMAT=CMAT
+          DRTMAT=DRMAT
 !$omp parallel do private(NTHREAD)
-      DO IP=1, NSYS
-           CALL ZGETRS( 'No transpose', NELEM, 6, CTMAT(:,:,IP), NELEM, IPIV(:,IP), DRTMAT(:,:,IP), NELEM, INFO )
-      ENDDO
+          DO IP=1, NSYS
+               CALL ZGETRS( 'No transpose', NELEM, 6, CTMAT(:,:,IP), NELEM, IPIV(:,IP), DRTMAT(:,:,IP), NELEM, INFO )
+          ENDDO
 !$omp end parallel do
+      ELSE
+!$omp parallel do private(NTHREAD)
+          DO IP=1, NSYS
+               CALL ZITER_SOLVE_MULTI(ISOLV, NELEM, CMAT(:,:,IP), DRMAT(:,:,IP), DRTMAT(:,:,IP), 6, INFO)
+          ENDDO
+!$omp end parallel do
+      ENDIF
       
       DO 1400 MD=1, 6
       DO 1400 IP=1, NSYS
@@ -570,16 +580,30 @@ CONTAINS
       
       ALLOCATE(CTMAT(NELEM,NELEM,NSYS),DDTMAT(NELEM,NSYS))
 
-      CTMAT=CMAT
-      DDTMAT=DDMAT
-
       MD=7
-      
+
+      IF (ISOLV .EQ. 1) THEN
+          CTMAT=CMAT
+          DDTMAT=DDMAT
 !$omp parallel do private(NTHREAD)
-      DO IP=1, NSYS
-           CALL ZGETRS( 'No transpose', NELEM, 1, CTMAT(:,:,IP), NELEM, IPIV(:,IP), DDTMAT(:,IP), NELEM, INFO )
-      ENDDO
+          DO IP=1, NSYS
+               CALL ZGETRS( 'No transpose', NELEM, 1, CTMAT(:,:,IP), NELEM, IPIV(:,IP), DDTMAT(:,IP), NELEM, INFO )
+          ENDDO
 !$omp end parallel do
+      ELSE
+!$omp parallel do private(NTHREAD)
+          DO IP=1, NSYS
+               DDTMAT(:,IP) = CMPLX(0.0D0, 0.0D0)
+               IF (ISOLV == 2) THEN
+                   CALL ZGMRES_SOLVE(NELEM, CMAT(:,:,IP), DDMAT(:,IP), DDTMAT(:,IP), &
+                                     ITER_TOL, ITER_MAXITER, GMRES_RESTART, INFO)
+               ELSE IF (ISOLV == 3) THEN
+                   CALL ZBICGSTAB_SOLVE(NELEM, CMAT(:,:,IP), DDMAT(:,IP), DDTMAT(:,IP), &
+                                        ITER_TOL, ITER_MAXITER, INFO)
+               END IF
+          ENDDO
+!$omp end parallel do
+      ENDIF
       
        DO 400 IP=1, NSYS
 !$OMP PARALLEL NUM_THREADS(NTHREAD)

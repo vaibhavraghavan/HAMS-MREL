@@ -24,7 +24,7 @@
 !
         MODULE HAMS_mod
 !
-        INTEGER,PUBLIC:: IRSP,INFT,OUFT,SYBO,ISOL
+        INTEGER,PUBLIC:: IRSP,INFT,OUFT,SYBO,ISOL,ISOLV
         INTEGER,PUBLIC:: NTHREAD                                 ! The number of threads to be used in openmpi (parallel)
 
         REAL*8,PUBLIC::  WK1,DWK,BETA1,DBETA

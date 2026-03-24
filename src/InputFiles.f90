@@ -174,8 +174,23 @@ module IO
         read(1,'(23x,i16)')        IRSP
         read(1,'(23x,i16)')        NTHREAD
 
+        ! Read optional iterative solver type (backward compatible)
+        ISOLV = 1  ! Default: direct LU
+        read(1, '(A)', IOSTAT=err) line
+        if (err == 0 .and. index(line, "Solver_type") > 0) then
+            read(line, '(26x,i16)', IOSTAT=err) ISOLV
+            if (err /= 0) ISOLV = 1
+            if (ISOLV < 1 .or. ISOLV > 3) then
+                print*, 'Warning: ISOLV must be 1, 2, or 3. Using default (1=direct LU).'
+                ISOLV = 1
+            end if
+        else
+            ! Line was not a Solver_type line, put it back
+            if (err == 0) backspace(1)
+        end if
+
         ! Field Points
-        read(1,*) 
+        read(1,*)
         read(1,*)
         ! Read number of field points
         read(1,'(27x,i16)')        NFP

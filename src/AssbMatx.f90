@@ -30,6 +30,7 @@ MODULE AssbMatx
 
    USE BodyIntgr
    USE PatcVelct
+   USE IterativeSolvers
    IMPLICIT NONE
 
    PRIVATE
@@ -103,11 +104,13 @@ CONTAINS
 !$OMP END DO NOWAIT
 !$OMP END PARALLEL
 
+      IF (ISOLV .EQ. 1) THEN
 !$omp parallel do private(NTHREAD)
-       DO IP=1, NSYS
-          CALL ZGETRF( NELEM, NELEM, AMAT(:,:,IP), NELEM, IPIV(:,IP), INFO )
-       ENDDO
+         DO IP=1, NSYS
+            CALL ZGETRF( NELEM, NELEM, AMAT(:,:,IP), NELEM, IPIV(:,IP), INFO )
+         ENDDO
 !$omp end parallel do
+      ENDIF
 
        RETURN
       END SUBROUTINE ASSB_LEFT
@@ -283,16 +286,24 @@ CONTAINS
       COMPLEX*16,ALLOCATABLE:: ATMAT(:,:,:),BRTMAT(:,:,:)
       
       ALLOCATE(ATMAT(NELEM,NELEM,NSYS),BRTMAT(NELEM,6,NSYS))
-      
-      ATMAT=AMAT                                                              ! Coefficient matrix for the left side
-      BRTMAT=BRMAT                                                            ! Coefficient matrix for the right side
-      
+
+      IF (ISOLV .EQ. 1) THEN
+          ! Direct solver: LU back-substitution
+          ATMAT=AMAT
+          BRTMAT=BRMAT
 !$omp parallel do private(NTHREAD)
-      DO IP=1, NSYS
-           CALL ZGETRS( 'No transpose', NELEM, 6, ATMAT(:,:,IP), NELEM, IPIV(:,IP), BRTMAT(:,:,IP), NELEM, INFO )             ! For reference - https://netlib.org/lapack/explore-html/d3/d01/group__complex16_g_ecomputational_ga3a5b88a7e8bf70591e521e86464e109d.html
-      ENDDO
-      ! In the end, BRTMAT is the X matrix in the equation A*X = B which is being solved above
+          DO IP=1, NSYS
+               CALL ZGETRS( 'No transpose', NELEM, 6, ATMAT(:,:,IP), NELEM, IPIV(:,IP), BRTMAT(:,:,IP), NELEM, INFO )
+          ENDDO
 !$omp end parallel do
+      ELSE
+          ! Iterative solver: AMAT is unfactored, solve A*X=B
+!$omp parallel do private(NTHREAD)
+          DO IP=1, NSYS
+               CALL ZITER_SOLVE_MULTI(ISOLV, NELEM, AMAT(:,:,IP), BRMAT(:,:,IP), BRTMAT(:,:,IP), 6, INFO)
+          ENDDO
+!$omp end parallel do
+      ENDIF
       
       DO 1400 MD=1, 6
       DO 1400 IP=1, NSYS
@@ -334,17 +345,33 @@ CONTAINS
       COMPLEX*16,ALLOCATABLE:: ATMAT(:,:,:),BDTMAT(:,:)
       
       ALLOCATE(ATMAT(NELEM,NELEM,NSYS),BDTMAT(NELEM,NSYS))
-      
-      ATMAT=AMAT
-      BDTMAT=BDMAT
 
       MD=7
-      
+
+      IF (ISOLV .EQ. 1) THEN
+          ! Direct solver
+          ATMAT=AMAT
+          BDTMAT=BDMAT
 !$omp parallel do private(NTHREAD)
-      DO IP=1, NSYS
-           CALL ZGETRS( 'No transpose', NELEM, 1, ATMAT(:,:,IP), NELEM, IPIV(:,IP), BDTMAT(:,IP), NELEM, INFO )
-      ENDDO
+          DO IP=1, NSYS
+               CALL ZGETRS( 'No transpose', NELEM, 1, ATMAT(:,:,IP), NELEM, IPIV(:,IP), BDTMAT(:,IP), NELEM, INFO )
+          ENDDO
 !$omp end parallel do
+      ELSE
+          ! Iterative solver
+!$omp parallel do private(NTHREAD)
+          DO IP=1, NSYS
+               BDTMAT(:,IP) = CMPLX(0.0D0, 0.0D0)
+               IF (ISOLV == 2) THEN
+                   CALL ZGMRES_SOLVE(NELEM, AMAT(:,:,IP), BDMAT(:,IP), BDTMAT(:,IP), &
+                                     ITER_TOL, ITER_MAXITER, GMRES_RESTART, INFO)
+               ELSE IF (ISOLV == 3) THEN
+                   CALL ZBICGSTAB_SOLVE(NELEM, AMAT(:,:,IP), BDMAT(:,IP), BDTMAT(:,IP), &
+                                        ITER_TOL, ITER_MAXITER, INFO)
+               END IF
+          ENDDO
+!$omp end parallel do
+      ENDIF
       
        DO 400 IP=1, NSYS
 !$OMP PARALLEL NUM_THREADS(NTHREAD)
