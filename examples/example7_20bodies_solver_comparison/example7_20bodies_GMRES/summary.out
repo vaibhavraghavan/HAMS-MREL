@@ -1,0 +1,94 @@
+ 
+ ------------------------HAMS-MREL (Hydrodynamic Analysis of Marine Structures - Marine Renewable Energies Lab)---------------------
+ 
+                                                         Code Author for the multi-body formulations and implementations: Vaibhav Raghavan
+ 
+                                                         Code Author for the single-body formulation: Yingyi Liu
+ 
+  HAMS-MREL is an open-source software for computing wave diffraction and radiation of 3D structures.
+ 
+ Please cite the following papers in your publications, reports, etc., when HAMS-MREL has been used in your work:
+ 
+  (1) Raghavan, V., Loukogeorgaki, E., Mantadakis, N., Metrikine, A. V., & Lavidas, G. (2024).
+      HAMS‑MREL, a new open‑source multiple body solver for marine renewable energies: Model description,
+      application and validation. Renewable Energy, 237, 127857. DOI: https://doi.org/10.1016/j.renene.2024.121577
+ 
+  (2) Raghavan, V., Metrikine, A.V. & Lavidas, G. Theory and validation of the new features in BIEM solver HAMS-MREL.
+      J. Ocean Eng. Mar. Energy 12, 53–71 (2026). DOI: https://doi.org/10.1007/s40722-025-00431-8
+ 
+  Paper list to be continued...
+ 
+ -----------------------------------------------------------------------------------------------
+ 
+  Input directory:                Input
+  Output directory:               Output
+
+  Number of machine processors:             48
+  Number of OpenMP threads:                 32
+  Maximum number of threads:                32
+  The No. of the current thread:             1
+ 
+ No removal of irregular frequencies.
+ No symmetry is being used for this analysis
+  Calculating panel normals is finished for all multi-bodies.
+ 
+  Number of geometrical symmetries:         0
+  Number of panels on the hull of body 1:       727
+  Number of panels on the hull of body 2:       727
+  Number of panels on the hull of body 3:       727
+  Number of panels on the hull of body 4:       727
+  Number of panels on the hull of body 5:       727
+  Number of panels on the hull of body 6:       727
+  Number of panels on the hull of body 7:       727
+  Number of panels on the hull of body 8:       727
+  Number of panels on the hull of body 9:       727
+  Number of panels on the hull of body10:       727
+  Number of panels on the hull of body11:       727
+  Number of panels on the hull of body12:       727
+  Number of panels on the hull of body13:       727
+  Number of panels on the hull of body14:       727
+  Number of panels on the hull of body15:       727
+  Number of panels on the hull of body16:       727
+  Number of panels on the hull of body17:       727
+  Number of panels on the hull of body18:       727
+  Number of panels on the hull of body19:       727
+  Number of panels on the hull of body20:       727
+  Linear solver type:             GMRES
+ 
+  Radiation-diffraction computation starts...
+
+          Wave Frequency =    0.000 rad/s
+  Block-diagonal preconditioner:  20 blocks (max size    727)
+  H-matrix compression:
+    Blocks:  26784 (dense:  16167, low-rank:  10617
+)
+    Average rank:   6.4
+    Compression ratio:  12.0x
+    Build time:   6.45 s
+            Wave Heading =   90.000 Degree
+
+          Wave Frequency =   -1.000 rad/s
+  Block-diagonal preconditioner:  20 blocks (max size    727)
+  H-matrix compression:
+    Blocks:  26784 (dense:  16676, low-rank:  10108
+)
+    Average rank:   7.8
+    Compression ratio:  11.3x
+    Build time:   6.61 s
+            Wave Heading =   90.000 Degree
+  WARNING: GMRES did not converge. Residual =        NaN, Tolerance =        NaN
+
+          Wave Frequency =    0.200 rad/s
+  Block-diagonal preconditioner:  20 blocks (max size    727)
+  H-matrix compression:
+    Blocks:  26784 (dense:  16207, low-rank:  10577
+)
+    Average rank:   6.5
+    Compression ratio:  11.8x
+    Build time:   6.59 s
+            Wave Heading =   90.000 Degree
+  AmssDamp.1 has been rearranged to row-major format.
+ 
+  Congratulations! Your computation completes successfully.
+ 
+runtime=173

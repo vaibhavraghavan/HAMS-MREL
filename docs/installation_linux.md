@@ -136,8 +136,10 @@ Create a Slurm job script, for example `slurmjob.sh`:
 # Load Intel compilers
 module load intel/oneapi-all
 
-# Set the number of OpenMP threads 
-export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+# Set stack and thread limits
+ulimit -s unlimited                             # remove stack size limit (prevents segfaults in recursive routines)
+export OMP_STACKSIZE=256M                       # per-thread stack size for OpenMP (required for large multi-body problems)
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK     # match OpenMP threads to allocated cores
 
 # Run the application
 srun <path-to-hams-repository>/src/hamsmrel <input-files-path> <output-directory-path>
@@ -149,6 +151,9 @@ sbatch slurmjob.sh
 ```
 
 This example runs HAMS-MREL on 1 node, 1 task, and 32 threads. Adjust `--cpus-per-task` depending on your simulation size and cluster resource allocation. This number must match the number of threads specified in the input file `ControlFile.in`.
+
+> [!IMPORTANT]
+> The `ulimit -s unlimited` and `OMP_STACKSIZE=256M` settings are essential for multi-body problems, especially when using the iterative GMRES solver with H-matrix compression. Without these, the code may crash with a segmentation fault (SIGSEGV) due to deep recursive calls in the H-matrix tree building and Green's function evaluation routines. For problems with more than 10 bodies, `OMP_STACKSIZE=512M` is recommended.
 
 Note that DelftBlue imposes strict memory quotas on the `/home` directory (approx. 30 GBs). Run jobs in `/scratch` to avoid exceeding memory limits.
 
