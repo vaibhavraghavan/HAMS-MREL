@@ -618,18 +618,11 @@ CONTAINS
           ENDDO
 !$omp end parallel do
       ELSE
-!$omp parallel do private(NTHREAD)
           DO IP=1, NSYS
                DDTMAT(:,IP) = CMPLX(0.0D0, 0.0D0)
-               IF (ISOLV == 2) THEN
-                   CALL ZGMRES_SOLVE(NELEM_TOTAL, CMAT(:,:,IP), DDMAT(:,IP), DDTMAT(:,IP), &
-                                     ITER_TOL, ITER_MAXITER, GMRES_RESTART, INFO)
-               ELSE IF (ISOLV == 3) THEN
-                   CALL ZBICGSTAB_SOLVE(NELEM_TOTAL, CMAT(:,:,IP), DDMAT(:,IP), DDTMAT(:,IP), &
-                                        ITER_TOL, ITER_MAXITER, INFO)
-               END IF
+               CALL ZGMRES_SOLVE(NELEM_TOTAL, CMAT(:,:,IP), DDMAT(:,IP), DDTMAT(:,IP), &
+                                 ITER_TOL, ITER_MAXITER, GMRES_RESTART, INFO)
           ENDDO
-!$omp end parallel do
       ENDIF
       
        DO 400 IP=1, NSYS

@@ -89,7 +89,9 @@ gfortran -O3 -fopenmp -ffree-line-length-none -o HAMS_MREL.exe ^
   WavDynSubs.f90 PatclVelct.f90 FinGrnExtSubs.f90 InfGreen_Appr.f90 ^
   FinGreen3D.f90 SingularIntgr.f90 SingularIntgrMulti.f90 ^
   CalGreenFunc.f90 CalGreenFuncMulti.f90 BodyIntgr_irr.f90 BodyIntgr.f90 ^
-  BodyIntgr_irrMulti.f90 BodyIntgrMulti.f90 AssbMatx_irr.f90 AssbMatx.f90 ^
+  BodyIntgr_irrMulti.f90 BodyIntgrMulti.f90 ^
+  HMatrix.f90 IterativeSolvers.f90 ^
+  AssbMatx_irr.f90 AssbMatx.f90 ^
   AssbMatx_irrMulti.f90 AssbMatxMulti.f90 HydroStatic.f90 HydroStaticMulti.f90 ^
   NormalProcess.f90 ReadPanelMesh.f90 ReadPanelMeshMulti.f90 ImplementSubs.f90 ^
   PotentWavForce.f90 PotentWavForceMulti.f90 PressureElevation.f90 ^

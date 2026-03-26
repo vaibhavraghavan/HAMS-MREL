@@ -250,8 +250,6 @@ program HAMS_MREL
             write(*,*) ' Linear solver type:             Direct (LU)'
         ELSE IF (ISOLV .EQ. 2) THEN
             write(*,*) ' Linear solver type:             GMRES'
-        ELSE IF (ISOLV .EQ. 3) THEN
-            write(*,*) ' Linear solver type:             BiCGSTAB'
         END IF
         PRINT*
         write(*,*) ' Radiation-diffraction computation starts...'
@@ -591,8 +589,6 @@ program HAMS_MREL
             WRITE(*,*) ' Linear solver type:             Direct (LU)'
         ELSE IF (ISOLV .EQ. 2) THEN
             WRITE(*,*) ' Linear solver type:             GMRES'
-        ELSE IF (ISOLV .EQ. 3) THEN
-            WRITE(*,*) ' Linear solver type:             BiCGSTAB'
         END IF
         PRINT*
         WRITE(*,*) ' Radiation-diffraction computation starts...'

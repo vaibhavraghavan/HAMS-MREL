@@ -1,0 +1,65 @@
+ 
+ ------------------------HAMS-MREL (Hydrodynamic Analysis of Marine Structures - Marine Renewable Energies Lab)---------------------
+ 
+                                                         Code Author for the multi-body formulations and implementations: Vaibhav Raghavan
+ 
+                                                         Code Author for the single-body formulation: Yingyi Liu
+ 
+  HAMS-MREL is an open-source software for computing wave diffraction and radiation of 3D structures.
+ 
+ Please cite the following papers in your publications, reports, etc., when HAMS-MREL has been used in your work:
+ 
+  (1) Raghavan, V., Loukogeorgaki, E., Mantadakis, N., Metrikine, A. V., & Lavidas, G. (2024).
+      HAMS‑MREL, a new open‑source multiple body solver for marine renewable energies: Model description,
+      application and validation. Renewable Energy, 237, 127857. DOI: https://doi.org/10.1016/j.renene.2024.121577
+ 
+  (2) Raghavan, V., Metrikine, A.V. & Lavidas, G. Theory and validation of the new features in BIEM solver HAMS-MREL.
+      J. Ocean Eng. Mar. Energy 12, 53–71 (2026). DOI: https://doi.org/10.1007/s40722-025-00431-8
+ 
+  Paper list to be continued...
+ 
+ -----------------------------------------------------------------------------------------------
+ 
+  Input directory:                Input
+  Output directory:               Output
+
+  Number of machine processors:             48
+  Number of OpenMP threads:                 32
+  Maximum number of threads:                32
+  The No. of the current thread:             1
+ 
+ No removal of irregular frequencies.
+ No symmetry is being used for this analysis
+  Calculating panel normals is finished for all multi-bodies.
+ 
+  Number of geometrical symmetries:         0
+  Number of panels on the hull of body 1:       727
+  Number of panels on the hull of body 2:       727
+  Number of panels on the hull of body 3:       727
+  Number of panels on the hull of body 4:       727
+  Number of panels on the hull of body 5:       727
+  Number of panels on the hull of body 6:       727
+  Number of panels on the hull of body 7:       727
+  Number of panels on the hull of body 8:       727
+  Number of panels on the hull of body 9:       727
+  Number of panels on the hull of body10:       727
+  Linear solver type:             Direct (LU)
+ 
+  Radiation-diffraction computation starts...
+
+          Wave Frequency =    0.000 rad/s
+            Wave Heading =   90.000 Degree
+
+          Wave Frequency =   -1.000 rad/s
+            Wave Heading =   90.000 Degree
+
+          Wave Frequency =    0.200 rad/s
+            Wave Heading =   90.000 Degree
+
+          Wave Frequency =    0.385 rad/s
+            Wave Heading =   90.000 Degree
+  AmssDamp.1 has been rearranged to row-major format.
+ 
+  Congratulations! Your computation completes successfully.
+ 
+runtime=181

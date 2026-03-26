@@ -1,0 +1,56 @@
+   --------------HAMS Control file---------------
+
+   Waterdepth   0.9D0                                          # Finite depth
+
+   #Start Definition of Wave Frequencies
+    0_inf_frequency_limits      1
+    Input_frequency_type        3
+    Output_frequency_type       3
+    Number_of_frequencies      -2
+    Minimum_frequency_Wmin    0.2D0
+    Frequency_step            0.185D0
+   #End Definition of Wave Frequencies
+
+   # Start of definition of bodies for multi-body interaction
+    Number_of_bodies          10
+    LCS_1                     0.000        0.000        0.000        0.000
+    LCS_2                     0.000        -0.390        0.000        0.000
+    LCS_3                     0.000        -0.780        0.000        0.000
+    LCS_4                     0.000        -1.170        0.000        0.000
+    LCS_5                     0.870        -0.390        0.000        0.000
+    LCS_6                     0.870         0.000        0.000        0.000
+    LCS_7                     0.870        -0.780        0.000        0.000
+    LCS_8                     0.870        -1.170        0.000        0.000
+    LCS_9                     1.740         0.000        0.000        0.000
+    LCS_10                    1.740        -0.390        0.000        0.000
+   # End of definition of bodies for multi-body interaction
+
+   #Start Definition of Wave Headings
+    Number_of_headings        1
+    90.D0
+   #End Definition of Wave Headings
+
+    Reference_body_center_1       0.000       0.000      -0.043
+    Reference_body_center_2       0.000       -0.390      -0.043
+    Reference_body_center_3       0.000       -0.780      -0.043
+    Reference_body_center_4       0.000       -1.170      -0.043
+    Reference_body_center_5       0.870       -0.390      -0.043
+    Reference_body_center_6       0.870        0.000      -0.043
+    Reference_body_center_7       0.870       -0.780      -0.043
+    Reference_body_center_8       0.870       -1.170      -0.043
+    Reference_body_center_9       1.740        0.000      -0.043
+    Reference_body_center_10      1.740       -0.390      -0.043
+    Reference_body_length   1.D0
+    Wave_diffrac_solution    1
+    If_remove_irr_freq       0
+    Number of threads        32
+    Solver_type                 2
+
+   #Start Definition of Pressure and/or Elevation (PE)
+    Number_of_field_points     0
+   #End Definition of Pressure and/or Elevation
+
+   ----------End HAMS Control file---------------
+
+   Solver_type options:
+   1--Direct LU (LAPACK ZGETRF/ZGETRS); 2--GMRES iterative solver

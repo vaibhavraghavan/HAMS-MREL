@@ -31,6 +31,7 @@ MODULE AssbMatxMulti
    USE BodyIntgrMulti
    USE PatcVelct
    USE IterativeSolvers
+   USE HMatrix_mod, ONLY: HMATRIX_BUILD
    IMPLICIT NONE
 
    PRIVATE
@@ -301,7 +302,8 @@ CONTAINS
       
       INTEGER IEL,IS,IP,MD,INFO
       COMPLEX*16,ALLOCATABLE:: ATMAT(:,:,:),BRTMAT(:,:,:)
-      
+      COMPLEX*16,ALLOCATABLE:: AWORK(:,:),BWORK(:,:),XWORK(:,:)
+
       ALLOCATE(ATMAT(NELEM,NELEM,NSYS),BRTMAT(NELEM,6*NBODY,NSYS))
 
       IF (ISOLV .EQ. 1) THEN
@@ -313,13 +315,22 @@ CONTAINS
           ENDDO
 !$omp end parallel do
       ELSE
-!$omp parallel do private(NTHREAD)
+          ALLOCATE(AWORK(NELEM,NELEM), BWORK(NELEM,6*NBODY), XWORK(NELEM,6*NBODY))
+          BRTMAT = CMPLX(0.0D0, 0.0D0)
           DO IP=1, NSYS
-               CALL ZITER_SOLVE_MULTI(ISOLV, NELEM, AMAT(:,:,IP), BRMAT(:,:,IP), BRTMAT(:,:,IP), 6*NBODY, INFO)
+               AWORK = AMAT(:,:,IP)
+               BWORK = BRMAT(:,:,IP)
+               XWORK = CMPLX(0.0D0, 0.0D0)
+               ! Set up block-diagonal LU preconditioner using per-body self-interaction blocks
+               CALL SETUP_BLOCK_PRECONDITIONER(NELEM, AWORK, NBODY, NELEM_MULTI)
+               ! Build H-matrix for fast matvec in GMRES
+               CALL HMATRIX_BUILD(NELEM, AWORK, XYZ_GLOBAL_MULTI_COMB_P)
+               CALL ZITER_SOLVE_MULTI(ISOLV, NELEM, AWORK, BWORK, XWORK, 6*NBODY, INFO)
+               BRTMAT(:,:,IP) = XWORK
           ENDDO
-!$omp end parallel do
+          DEALLOCATE(AWORK, BWORK, XWORK)
       ENDIF
-      
+
       DO 1400 MD=1, 6*NBODY
       DO 1400 IP=1, NSYS
 !$OMP PARALLEL NUM_THREADS(NTHREAD)
@@ -372,18 +383,18 @@ CONTAINS
           ENDDO
 !$omp end parallel do
       ELSE
-!$omp parallel do private(NTHREAD)
+          ! GMRES iterative solver with block-diagonal preconditioner
           DO IP=1, NSYS
-               BDTMAT(:,IP) = CMPLX(0.0D0, 0.0D0)
-               IF (ISOLV == 2) THEN
-                   CALL ZGMRES_SOLVE(NELEM, AMAT(:,:,IP), BDMAT(:,IP), BDTMAT(:,IP), &
-                                     ITER_TOL, ITER_MAXITER, GMRES_RESTART, INFO)
-               ELSE IF (ISOLV == 3) THEN
-                   CALL ZBICGSTAB_SOLVE(NELEM, AMAT(:,:,IP), BDMAT(:,IP), BDTMAT(:,IP), &
-                                        ITER_TOL, ITER_MAXITER, INFO)
+               ATMAT(:,:,1) = AMAT(:,:,IP)
+               BDTMAT(:,IP) = BDMAT(:,IP)
+               ! Block preconditioner already set up during radiation solve
+               ! If not yet set up (e.g., diffraction-only), set it up now
+               IF (PRECOND_NBLOCKS == 0) THEN
+                   CALL SETUP_BLOCK_PRECONDITIONER(NELEM, ATMAT(:,:,1), NBODY, NELEM_MULTI)
                END IF
+               CALL ZGMRES_SOLVE(NELEM, ATMAT(:,:,1), BDMAT(:,IP), BDTMAT(:,IP), &
+                                 ITER_TOL, ITER_MAXITER, GMRES_RESTART, INFO)
           ENDDO
-!$omp end parallel do
       ENDIF
 
        DO 400 IP=1, NSYS

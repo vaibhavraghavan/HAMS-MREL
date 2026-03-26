@@ -180,8 +180,8 @@ module IO
         if (err == 0 .and. index(line, "Solver_type") > 0) then
             read(line, '(26x,i16)', IOSTAT=err) ISOLV
             if (err /= 0) ISOLV = 1
-            if (ISOLV < 1 .or. ISOLV > 3) then
-                print*, 'Warning: ISOLV must be 1, 2, or 3. Using default (1=direct LU).'
+            if (ISOLV < 1 .or. ISOLV > 2) then
+                print*, 'Warning: ISOLV must be 1 or 2. Using default (1=direct LU).'
                 ISOLV = 1
             end if
         else

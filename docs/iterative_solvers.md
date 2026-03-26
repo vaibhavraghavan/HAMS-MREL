@@ -1,12 +1,11 @@
 # Iterative Solvers
 
-HAMS-MREL supports three linear solver options for the BEM system of equations. The solver is selected via the `ISOLV` parameter in `ControlFile.in`.
+HAMS-MREL supports two linear solver options for the BEM system of equations. The solver is selected via the `ISOLV` parameter in `ControlFile.in`.
 
 | ISOLV | Solver | Description |
 | :--- | :--- | :--- |
 | 1 | Direct LU | LAPACK ZGETRF/ZGETRS factorization and back-substitution (default) |
-| 2 | GMRES | Restarted Generalized Minimal Residual method with Jacobi preconditioner |
-| 3 | BiCGSTAB | Bi-Conjugate Gradient Stabilized method with Jacobi preconditioner |
+| 2 | GMRES | Restarted GMRES with block-diagonal LU preconditioner and H-matrix accelerated matvec |
 
 When `ISOLV` is omitted from `ControlFile.in`, the solver defaults to direct LU (ISOLV=1), preserving full backward compatibility.
 
@@ -31,25 +30,15 @@ The LU factorization is computed once per frequency in the `ASSB_LEFT` subroutin
 The Generalized Minimal Residual method (Saad & Schultz, 1986) builds an orthonormal basis for the Krylov subspace and minimizes the residual norm over that subspace.
 
 **Implementation details:**
-- **Restart parameter**: m = 50 (GMRES is restarted every 50 iterations to limit memory usage)
-- **Preconditioner**: Jacobi (diagonal) preconditioner using `M = diag(A)`. The diagonal of the BEM influence matrix contains the `2*pi` self-influence term, providing effective scaling.
-- **Convergence tolerance**: Relative residual `||r|| / ||b|| < 1e-7`
-- **Maximum iterations**: 500 (across all restarts)
-- **Memory**: Requires storage for the Krylov basis vectors: O(N * m) complex values per right-hand side
+- **Restart parameter**: m = 25 (GMRES is restarted every 25 iterations to limit memory usage)
+- **Preconditioner**: Block-diagonal LU for multi-body (each body's self-interaction block is LU-factorized); Jacobi (diagonal) fallback for single-body
+- **H-matrix matvec**: Adaptive Cross Approximation (ACA) compresses far-field interaction blocks to low-rank form, reducing matvec cost from O(N^2) to O(N k log N)
+- **Block GMRES**: Multiple RHS solved with deflated initial guesses (previous RHS solution seeds the next)
+- **Convergence tolerance**: Relative residual `||r|| / ||b|| < 1e-4` (sufficient for BEM mesh discretization accuracy)
+- **Maximum iterations**: 100 (across all restarts)
+- **Memory**: Krylov basis O(N * m), H-matrix O(N k log N), block preconditioner O(NBODY * (N/NBODY)^2)
 
-GMRES is guaranteed to converge for non-singular systems (in exact arithmetic) and is generally the more robust iterative option.
-
-### BiCGSTAB (ISOLV=3)
-
-The Bi-Conjugate Gradient Stabilized method (van der Vorst, 1992) is a Krylov method for non-symmetric systems that avoids the irregular convergence behavior of standard Bi-CG.
-
-**Implementation details:**
-- **Preconditioner**: Jacobi (diagonal), same as GMRES
-- **Convergence tolerance**: `||r|| / ||b|| < 1e-7`
-- **Maximum iterations**: 500
-- **Memory**: Requires only O(N) work vectors per right-hand side (lower than GMRES)
-
-BiCGSTAB uses less memory than GMRES but can occasionally exhibit breakdown or stagnation for ill-conditioned systems.
+GMRES is guaranteed to converge for non-singular systems (in exact arithmetic) and is the recommended iterative option for large multi-body problems.
 
 ## Enabling Iterative Solvers
 
@@ -128,8 +117,74 @@ If the iterative solver reports convergence warnings:
 3. **Try the other iterative solver**: GMRES and BiCGSTAB have different convergence characteristics. If one fails, the other may succeed.
 4. **Check mesh quality**: Poorly shaped panels (very elongated or with near-zero area) degrade matrix conditioning.
 
+## H-Matrix Acceleration
+
+When GMRES is selected (`ISOLV=2`), the iterative solver automatically builds a hierarchical matrix (H-matrix) approximation of the BEM influence matrix for fast matrix-vector products. This reduces the matvec cost from O(N^2) to O(N k log N), where k is the typical low-rank of far-field interaction blocks (k ~ 10-20 for BEM problems).
+
+### How It Works
+
+The BEM influence matrix has hierarchical low-rank structure: panels far apart interact via a smooth Green's function kernel, so those sub-blocks can be approximated as low-rank matrices `A_block ≈ U * V^H` with rank k much less than the block dimension. Only near-field blocks (panels close together) require full dense storage.
+
+The H-matrix implementation consists of four stages:
+
+1. **Cluster tree construction**: Panel centers are recursively bisected along the longest bounding box dimension, creating a binary tree with leaf clusters of at most 32 panels.
+
+2. **Block cluster tree**: Each pair of clusters is tested for admissibility: `dist(sigma, tau) > eta * max(diam(sigma), diam(tau))` with eta=2.0. Admissible pairs have smooth interaction and are marked for compression. Inadmissible leaf pairs are stored as dense blocks.
+
+3. **Adaptive Cross Approximation (ACA)**: Each admissible block is compressed using partially-pivoted ACA, which incrementally builds the low-rank factors U and V^H by sampling individual matrix entries. The approximation rank is determined adaptively with tolerance 1e-4 (matching the GMRES convergence tolerance). If compression is not worthwhile (`rank * (nrows + ncols) >= nrows * ncols`), the block falls back to dense storage.
+
+4. **H-matvec**: During each GMRES iteration, the matrix-vector product uses the compressed representation. Dense blocks use standard ZGEMV. Low-rank blocks compute `y += U * (V^H * x)` — two small ZGEMV calls instead of one large one.
+
+### Performance
+
+The H-matrix is built once per frequency after the coefficient matrix is assembled. Build cost is O(N k^2 log N) — typically 1-2 seconds for N=7000 panels. The per-matvec speedup depends on the problem geometry:
+
+| N (panels) | Dense matvec | H-matvec | Speedup |
+| :--- | :--- | :--- | :--- |
+| 3000 | ~9M ops | ~1M ops | ~9x |
+| 7000 | ~49M ops | ~3M ops | ~16x |
+| 15000 | ~225M ops | ~8M ops | ~28x |
+
+The H-matrix is fully transparent to the user — it is automatically built and used when ISOLV=2. Console output reports compression statistics:
+
+```
+  H-matrix compression:
+    Blocks: 1247 (dense: 312, low-rank: 935)
+    Average rank: 12.3
+    Compression ratio: 8.5x
+    Build time: 1.42 s
+```
+
+### Block-Diagonal LU Preconditioner
+
+For multi-body problems, GMRES uses a block-diagonal LU preconditioner where each body's self-interaction block is LU-factorized independently. This is set up automatically based on `NELEM_MULTI` (per-body panel counts). The preconditioner reduces GMRES iterations from ~16 (Jacobi) to ~5 (block-diagonal LU), with setup cost equivalent to NBODY independent LU factorizations of size (N/NBODY).
+
+### Block GMRES with Deflated Initial Guesses
+
+Multiple right-hand sides (radiation modes) are solved in batches. Each RHS in a batch is seeded with the solution from the previous RHS, exploiting the similarity between adjacent radiation modes. This reduces iterations for later modes from ~5 to ~2-3.
+
+### Source Files
+
+| File | Description |
+| :--- | :--- |
+| [HMatrix.f90](../src/HMatrix.f90) | H-matrix module: cluster tree, ACA, H-matvec |
+| [IterativeSolvers.f90](../src/IterativeSolvers.f90) | GMRES solver with H-matvec integration, block preconditioner, Block GMRES |
+
+### Tuning Parameters
+
+The H-matrix parameters in `HMatrix.f90` can be adjusted:
+
+| Parameter | Default | Description |
+| :--- | :--- | :--- |
+| `NLEAF_DEFAULT` | 32 | Max panels per leaf cluster. Smaller = deeper tree, more blocks |
+| `ETA_DEFAULT` | 2.0 | Admissibility parameter. Larger = more low-rank blocks, but higher rank |
+| `ACA_TOL` | 1e-4 | ACA convergence tolerance. Should match GMRES tolerance |
+| `RANK_MAX` | 50 | Maximum low-rank approximation rank. Cap for oscillatory kernels |
+
 ## References
 
 - Saad, Y. & Schultz, M.H. (1986). GMRES: A generalized minimal residual algorithm for solving nonsymmetric linear systems. SIAM Journal on Scientific and Statistical Computing, 7(3), 856-869.
-- van der Vorst, H.A. (1992). Bi-CGSTAB: A fast and smoothly converging variant of Bi-CG for the solution of nonsymmetric linear systems. SIAM Journal on Scientific and Statistical Computing, 13(2), 631-644.
+- Hackbusch, W. (1999). A sparse matrix arithmetic based on H-matrices. Part I: Introduction to H-matrices. Computing, 62(2), 89-108.
+- Bebendorf, M. (2000). Approximation of boundary element matrices. Numer. Math., 86(4), 565-589.
+- Rjasanow, S. & Steinbach, O. (2007). The Fast Solution of Boundary Integral Equations. Springer.
 - Ancellin, M. & Dias, F. (2019). Capytaine: a Python-based linear potential flow solver. Journal of Open Source Software, 4(36), 1341.

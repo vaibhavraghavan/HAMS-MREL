@@ -31,6 +31,7 @@ MODULE AssbMatx
    USE BodyIntgr
    USE PatcVelct
    USE IterativeSolvers
+   USE HMatrix_mod, ONLY: HMATRIX_BUILD
    IMPLICIT NONE
 
    PRIVATE
@@ -284,7 +285,8 @@ CONTAINS
       
       INTEGER IEL,IS,IP,MD,INFO
       COMPLEX*16,ALLOCATABLE:: ATMAT(:,:,:),BRTMAT(:,:,:)
-      
+      COMPLEX*16,ALLOCATABLE:: AWORK(:,:),BWORK(:,:),XWORK(:,:)
+
       ALLOCATE(ATMAT(NELEM,NELEM,NSYS),BRTMAT(NELEM,6,NSYS))
 
       IF (ISOLV .EQ. 1) THEN
@@ -298,11 +300,18 @@ CONTAINS
 !$omp end parallel do
       ELSE
           ! Iterative solver: AMAT is unfactored, solve A*X=B
-!$omp parallel do private(NTHREAD)
+          ALLOCATE(AWORK(NELEM,NELEM), BWORK(NELEM,6), XWORK(NELEM,6))
+          BRTMAT = CMPLX(0.0D0, 0.0D0)
           DO IP=1, NSYS
-               CALL ZITER_SOLVE_MULTI(ISOLV, NELEM, AMAT(:,:,IP), BRMAT(:,:,IP), BRTMAT(:,:,IP), 6, INFO)
+               AWORK = AMAT(:,:,IP)
+               BWORK = BRMAT(:,:,IP)
+               XWORK = CMPLX(0.0D0, 0.0D0)
+               ! Build H-matrix for fast matvec in GMRES
+               CALL HMATRIX_BUILD(NELEM, AWORK, XYZ_P)
+               CALL ZITER_SOLVE_MULTI(ISOLV, NELEM, AWORK, BWORK, XWORK, 6, INFO)
+               BRTMAT(:,:,IP) = XWORK
           ENDDO
-!$omp end parallel do
+          DEALLOCATE(AWORK, BWORK, XWORK)
       ENDIF
       
       DO 1400 MD=1, 6
@@ -358,19 +367,13 @@ CONTAINS
           ENDDO
 !$omp end parallel do
       ELSE
-          ! Iterative solver
-!$omp parallel do private(NTHREAD)
+          ! GMRES iterative solver: use contiguous work arrays
           DO IP=1, NSYS
-               BDTMAT(:,IP) = CMPLX(0.0D0, 0.0D0)
-               IF (ISOLV == 2) THEN
-                   CALL ZGMRES_SOLVE(NELEM, AMAT(:,:,IP), BDMAT(:,IP), BDTMAT(:,IP), &
-                                     ITER_TOL, ITER_MAXITER, GMRES_RESTART, INFO)
-               ELSE IF (ISOLV == 3) THEN
-                   CALL ZBICGSTAB_SOLVE(NELEM, AMAT(:,:,IP), BDMAT(:,IP), BDTMAT(:,IP), &
-                                        ITER_TOL, ITER_MAXITER, INFO)
-               END IF
+               ATMAT(:,:,1) = AMAT(:,:,IP)
+               BDTMAT(:,IP) = BDMAT(:,IP)
+               CALL ZGMRES_SOLVE(NELEM, ATMAT(:,:,1), BDMAT(:,IP), BDTMAT(:,IP), &
+                                 ITER_TOL, ITER_MAXITER, GMRES_RESTART, INFO)
           ENDDO
-!$omp end parallel do
       ENDIF
       
        DO 400 IP=1, NSYS
