@@ -307,11 +307,11 @@ CONTAINS
         NFAC=RHO*G*AMP
        ENDIF
       ELSEIF (adjustl(trim(PEFLG)).EQ.'Elevation') THEN
-       NFAC=AMP/W1**2
+       NFAC=AMP
       ENDIF
 
       IF (adjustl(trim(RDFLG)).EQ.'Diffraction') THEN
-       NVCP=VCP/AMP
+       NVCP=VCP/NFAC
       ELSEIF (adjustl(trim(RDFLG)).EQ.'Radiation') THEN
        IF (MD.LE.3) THEN
         MEXP=0
@@ -321,7 +321,7 @@ CONTAINS
        IF (ABS(TP+1.D0).LT.1.E-6.OR.ABS(TP).LT.1.E-6) THEN
         NVCP=VCP/NFAC*AMP/REFL**(MEXP+1)
        ELSE
-        NVCP=VCP/NFAC*(-CI/W1)*AMP/REFL**MEXP
+        NVCP=VCP/NFAC*(-CI*W1)*AMP/REFL**MEXP
         !PRINT*, NFAC,REFL,MEXP
         !PAUSE
        ENDIF
