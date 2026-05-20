@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -o \"\\\\\\\\\\\\\\\\[a-zA-Z]*{[^}]*}\" \"C:/Users/vraghavan1/Downloads/Mixed_farms_dissertation_with_feedback/Hydrodynamics_mixed_arrays/Hydrodynamics_mixed_arrays.tex\")",
+      "Bash(grep -oE '\\\\$[^$]+\\\\$|\\\\\\\\[a-zA-Z]+|\\\\\\\\begin\\\\{[^}]+\\\\}' \"/c/Users/vraghavan1/Downloads/Mixed_farms_dissertation_with_feedback/Theory_validation_HAMS_MREL/Theory_validation_HAMS_MREL_mod_A.tex\")",
+      "Bash(python -c \"import matplotlib; print\\(matplotlib.__version__\\)\")",
+      "Bash(python -c \"import numpy; print\\(numpy.__version__\\)\")",
+      "Read(//c/Program Files/**)"
+    ]
+  }
+}

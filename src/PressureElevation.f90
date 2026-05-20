@@ -275,11 +275,11 @@ CONTAINS
         NFAC=RHO*G*AMP
        ENDIF
       ELSEIF (adjustl(trim(PEFLG)).EQ.'Elevation') THEN
-       NFAC=AMP
+       NFAC=AMP/W1**2
       ENDIF
 
       IF (adjustl(trim(RDFLG)).EQ.'Diffraction') THEN
-       NVCP=VCP/NFAC
+       NVCP=VCP/AMP
       ELSEIF (adjustl(trim(RDFLG)).EQ.'Radiation') THEN
        IF (MD.LE.3) THEN
         MEXP=0
