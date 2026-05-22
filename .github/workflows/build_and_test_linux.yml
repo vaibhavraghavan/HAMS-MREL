@@ -40,8 +40,11 @@ jobs:
       - uses: fortran-lang/setup-fpm@v7
           
       # Compile HAMS-MREL using FPM
-      # FPM will use the FPM_LDFLAGS variable to determine what linker flags to use
+      # FPM will use the FPM_FFLAGS/FPM_LDFLAGS variables to determine what compiler/linker flags to use.
+      # `-heap-arrays 0` is required to keep large multi-body cases from overflowing the per-thread stack;
+      # see docs/installation_linux.md.
       - name: Compile HAMS-MREL
         run: |
+          export FPM_FFLAGS="-qmkl -qopenmp -heap-arrays 0"
           export FPM_LDFLAGS="-qmkl"
           fpm build

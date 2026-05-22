@@ -21,6 +21,9 @@ HAMS-MREL can be built using multiple methods, but tests must always be run via 
 export FPM_FC=IFX
 
 # FPM: set the compiler flags
+# `-heap-arrays 0` is required to keep large multi-body cases from overflowing the per-thread
+# stack — see the installation docs for the full explanation.
+export FPM_FFLAGS="-qmkl -qopenmp -heap-arrays 0"
 export FPM_LDFLAGS="-qmkl -qopenmp"
 
 # Compilation step. Build is handled by FPM (HAMS-MREL and test executables will be placed in build directory)
