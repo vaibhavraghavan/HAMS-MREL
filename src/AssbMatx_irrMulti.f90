@@ -378,24 +378,15 @@ CONTAINS
 
        BTMP=CMPLX(0.0D0,0.0D0)
        
-       IF (ISOL.EQ.2) THEN
-            
-         DO 100  IP=1,  NSYS
-          IF (ISX.EQ.1.AND.ISY.EQ.0) THEN
-           XP=RX_MULTI(IP,1)*XYZ_GLOBAL_MULTI_COMB_P(IEL,1)
-           YP=RX_MULTI(IP,2)*XYZ_GLOBAL_MULTI_COMB_P(IEL,2)
-           ZP=         XYZ_GLOBAL_MULTI_COMB_P(IEL,3)
-          ELSE
-           XP=RY_MULTI(IP,1)*XYZ_GLOBAL_MULTI_COMB_P(IEL,1)
-           YP=RY_MULTI(IP,2)*XYZ_GLOBAL_MULTI_COMB_P(IEL,2)
-           ZP=         XYZ_GLOBAL_MULTI_COMB_P(IEL,3)
-          ENDIF
-          BTMP(IP)=4.D0*PI*VINP(XP,YP,ZP,XW(1),XW(2),BETA)
-100      CONTINUE
-         
-       ELSEIF (ISOL.EQ.1) THEN
+       IF (ISOL.NE.1.AND.ISOL.NE.2) THEN
+        PRINT*,"  Error: The input for ISOL should be either 1 or 2."
+        STOP
+       ENDIF
 
-        DO 200 JEL=1,  NELEM_TOTAL
+       ! Both ISOL=1 (total) and ISOL=2 (scattered) solve the same validated
+       ! direct BIE for the scattered potential; the total/scattered choice is
+       ! applied later by adding back the incident potential F0 (ISOL=1 only).
+       DO 200 JEL=1,  NELEM_TOTAL
 
           DIST=SQRT((XYZ_GLOBAL_MULTI_COMB_P(IEL,1)-XYZ_GLOBAL_MULTI_COMB_P(JEL,1))**2+(XYZ_GLOBAL_MULTI_COMB_P(IEL,2)-XYZ_GLOBAL_MULTI_COMB_P(JEL,2))**2+(XYZ_GLOBAL_MULTI_COMB_P(IEL,3)-XYZ_GLOBAL_MULTI_COMB_P(JEL,3))**2)
           IF (DIST.LE.50.D0*PNSZ_MULTI_COMB(JEL)) THEN
@@ -405,23 +396,16 @@ CONTAINS
           ENDIF
 
           TINRD=CMPLX(0.0D0, 0.0D0)
-        
+
           DO  200   IS=1,  NSYS
-        
+
             CALL DBC_IRR_MULTI(IS,IEL,JEL,TINRD,IRR,FLAG)
- 
+
           DO IP=1, NSYS
             BTMP(IP)=BTMP(IP)+TINRD(IS,IP)
           ENDDO
-        
+
 200     CONTINUE
-        
-       ELSE
-           
-        PRINT*,"  Error: The input for ISOL should be either 1 or 2."
-        STOP
-        
-       ENDIF
  
         DO  300  IP=1, NSYS
 
@@ -447,25 +431,16 @@ CONTAINS
 
        BTMP=CMPLX(0.0D0,0.0D0)
        
-       IF (ISOL.EQ.2) THEN
-            
-         DO 500  IP=1,  NSYS
-          IF (ISX.EQ.1.AND.ISY.EQ.0) THEN
-           XP=RX_MULTI(IP,1)*iXYZ_GLOBAL_MULTI_COMB_P(IEL-NELEM_TOTAL,1)
-           YP=RX_MULTI(IP,2)*iXYZ_GLOBAL_MULTI_COMB_P(IEL-NELEM_TOTAL,2)
-           ZP=         iXYZ_GLOBAL_MULTI_COMB_P(IEL-NELEM_TOTAL,3)
-          ELSE
-           XP=RY_MULTI(IP,1)*iXYZ_GLOBAL_MULTI_COMB_P(IEL-NELEM_TOTAL,1)
-           YP=RY_MULTI(IP,2)*iXYZ_GLOBAL_MULTI_COMB_P(IEL-NELEM_TOTAL,2)
-           ZP=         iXYZ_GLOBAL_MULTI_COMB_P(IEL-NELEM_TOTAL,3)
-          ENDIF
-          BTMP(IP)=4.D0*PI*VINP(XP,YP,ZP,XW(1),XW(2),BETA)
-500      CONTINUE
-         
-       ELSEIF (ISOL.EQ.1) THEN
+       IF (ISOL.NE.1.AND.ISOL.NE.2) THEN
+        PRINT*,"  Error: The input for ISOL should be either 1 or 2."
+        STOP
+       ENDIF
 
-        DO 600 JEL=1,  NELEM_TOTAL
-            
+       ! Both ISOL=1 (total) and ISOL=2 (scattered) solve the same validated
+       ! direct BIE for the scattered potential; the total/scattered choice is
+       ! applied later by adding back the incident potential F0 (ISOL=1 only).
+       DO 600 JEL=1,  NELEM_TOTAL
+
         DIST=SQRT((iXYZ_GLOBAL_MULTI_COMB_P(IEL-NELEM_TOTAL,1)-XYZ_GLOBAL_MULTI_COMB_P(JEL,1))**2+(iXYZ_GLOBAL_MULTI_COMB_P(IEL-NELEM_TOTAL,2)-XYZ_GLOBAL_MULTI_COMB_P(JEL,2))**2+(iXYZ_GLOBAL_MULTI_COMB_P(IEL-NELEM_TOTAL,3)-XYZ_GLOBAL_MULTI_COMB_P(JEL,3))**2)
         IF (DIST.LE.50.D0*PNSZ_MULTI_COMB(JEL)) THEN
          FLAG=1
@@ -474,23 +449,16 @@ CONTAINS
         ENDIF
 
           TINRD=CMPLX(0.0D0, 0.0D0)
-        
+
           DO  600   IS=1,  NSYS
-        
+
             CALL DBC_IRR_MULTI(IS,IEL-NELEM_TOTAL,JEL,TINRD,IRR,FLAG)
 
           DO IP=1, NSYS
             BTMP(IP)=BTMP(IP)+TINRD(IS,IP)
           ENDDO
-        
+
 600     CONTINUE
-        
-       ELSE
-           
-        PRINT*,"  Error: The input for ISOL should be either 1 or 2."
-        STOP
-        
-       ENDIF
        
        DO  700  IP=1, NSYS
 
