@@ -60,6 +60,9 @@ CONTAINS
 
       INTEGER  JEL,IS,IRR,FLAG
       REAL*8   XQ(3),XP(3),XT(3),DIST,EAR,RKN(4),ENV(3),ENT(3),SLD
+      INTEGER  NCV,KK,KA,KB
+      REAL*8   XPB(3),EN3(3),EV(3),WV(3),CX3,CY3,CZ3,SVAL,SMIN,SMAX,DPLN,TOLP,TOLA
+      LOGICAL  ONBODY
       COMPLEX*16  F0,DPOX,DPOY,DPOZ,DINCP,TERM1,TERM2,GRN(4),DUM(2)
       COMPLEX*16, ALLOCATABLE:: XPOT(:)
       
@@ -186,7 +189,81 @@ CONTAINS
         POT=POT+XPOT(JEL)
       ENDDO
 
-      SLD=4.D0*PI                                                                    ! Why division by 4 pi? 
+      ! ---- Free-term (solid-angle) factor -------------------------------------
+      ! phi(x) is reconstructed from the boundary-integral representation,
+      ! phi(x) = (1/SLD) * INT_S[...]. For a field point in the fluid (exterior
+      ! to the body) the free term is the full solid angle SLD = 4*pi. For a
+      ! field point ON the smooth body surface the free term is 2*pi, so using
+      ! 4*pi there returns only HALF the true surface value. We therefore test
+      ! whether the field point lies on a body panel surface and switch to 2*pi
+      ! there; free-surface (elevation) points and any other off-body points
+      ! keep 4*pi. This removes the spurious factor-of-2 in on-surface
+      ! pressure/elevation output without touching the (correct) force code.
+      !
+      ! On-surface test for each panel: (a) the point lies in the panel plane,
+      ! i.e. |(P - vertex).n| is below a thin tolerance (DXYZ_P is the unit
+      ! normal); and (b) the in-plane projection is inside the panel polygon,
+      ! i.e. (edge x (P - vertex)).n keeps a consistent sign around all NCN
+      ! edges. This is a true point-on-surface test (valid for ANY field point
+      ! on the hull, not just panel centroids). Symmetry images of the field
+      ! point are tested the same way the integral loop reflects them.
+      ONBODY=.FALSE.
+      DO JEL=1, NELEM
+       NCV=NCN(JEL)
+       EN3(1)=DXYZ_P(JEL,1)
+       EN3(2)=DXYZ_P(JEL,2)
+       EN3(3)=DXYZ_P(JEL,3)
+       TOLP=MAX(1.0D-6,1.0D-3*PNSZ(JEL))
+       TOLA=1.0D-3*PNSZ(JEL)**2
+       DO IS=1, NSYS
+        IF (ISX.EQ.1.AND.ISY.EQ.0) THEN
+         XPB(1)=SY(IS,1)*XET(1)
+         XPB(2)=SX(IS,1)*XET(2)
+         XPB(3)=         XET(3)
+        ELSE
+         XPB(1)=SX(IS,1)*XET(1)
+         XPB(2)=SY(IS,1)*XET(2)
+         XPB(3)=         XET(3)
+        ENDIF
+!       (a) distance from the field point to the panel plane
+        KA=NCON(JEL,1)
+        DPLN=(XPB(1)-XYZ(KA,1))*EN3(1)   &
+            +(XPB(2)-XYZ(KA,2))*EN3(2)   &
+            +(XPB(3)-XYZ(KA,3))*EN3(3)
+        IF (ABS(DPLN).GT.TOLP) CYCLE
+!       (b) in-polygon test via consistent sign of (edge x (P-vertex)).n
+        SMIN= 1.0D30
+        SMAX=-1.0D30
+        DO KK=1, NCV
+         KA=NCON(JEL,KK)
+         IF (KK.LT.NCV) THEN
+          KB=NCON(JEL,KK+1)
+         ELSE
+          KB=NCON(JEL,1)
+         ENDIF
+         EV(1)=XYZ(KB,1)-XYZ(KA,1)
+         EV(2)=XYZ(KB,2)-XYZ(KA,2)
+         EV(3)=XYZ(KB,3)-XYZ(KA,3)
+         WV(1)=XPB(1)-XYZ(KA,1)
+         WV(2)=XPB(2)-XYZ(KA,2)
+         WV(3)=XPB(3)-XYZ(KA,3)
+         CX3=EV(2)*WV(3)-EV(3)*WV(2)
+         CY3=EV(3)*WV(1)-EV(1)*WV(3)
+         CZ3=EV(1)*WV(2)-EV(2)*WV(1)
+         SVAL=CX3*EN3(1)+CY3*EN3(2)+CZ3*EN3(3)
+         SMIN=MIN(SMIN,SVAL)
+         SMAX=MAX(SMAX,SVAL)
+        ENDDO
+        IF (SMIN.GE.-TOLA.OR.SMAX.LE.TOLA) ONBODY=.TRUE.
+       ENDDO
+       IF (ONBODY) EXIT
+      ENDDO
+
+      IF (ONBODY) THEN
+       SLD=2.D0*PI                  ! field point on the body surface
+      ELSE
+       SLD=4.D0*PI                  ! field point in the fluid (exterior)
+      ENDIF
       POT=POT/SLD
       
       ! Diffraction mode: ISOL=1 outputs the total field (scattered + incident),

@@ -60,11 +60,13 @@ CONTAINS
       COMPLEX*16,INTENT(OUT):: POT
       CHARACTER(*),INTENT(IN)::RDFLG
 
-      INTEGER  JEL,IS,IRR,FLAG
+      INTEGER  JEL,IS,IRR,FLAG,NCV,KK,KA,KB
       REAL*8   XQ(3),XP(3),XT(3),DIST,EAR,RKN(4),ENV(3),ENT(3),SLD
+      REAL*8   XPB(3),EN3(3),EV(3),WV(3),CX3,CY3,CZ3,SVAL,SMIN,SMAX,DPLN,TOLP,TOLA
+      LOGICAL  ONBODY
       COMPLEX*16  F0,DPOX,DPOY,DPOZ,DINCP,TERM1,TERM2,GRN(4),DUM(2)
       COMPLEX*16, ALLOCATABLE:: XPOT(:)
-      
+
       ALLOCATE(XPOT(NELEM_PE))
         
       IRR=1
@@ -193,9 +195,65 @@ CONTAINS
       ENDDO
 
 
-      SLD=4.D0*PI                                                                     
+      ! ---- Free-term (solid-angle) factor -------------------------------------
+      ! 2*pi on the body surface, 4*pi for a field point in the fluid. See the
+      ! single-body CalPotential for the full explanation. Detect whether the
+      ! field point actually LIES ON a body panel (true point-in-polygon test,
+      ! not just centroid coincidence) and pick the free term accordingly,
+      ! removing the spurious factor-of-2 in on-surface output.
+      ONBODY=.FALSE.
+      DO JEL=1, NELEM_PE
+       NCV=NCN_MULTI_COMB(JEL)
+       EN3(1)=DXYZ_MULTI_COMB(JEL,1)
+       EN3(2)=DXYZ_MULTI_COMB(JEL,2)
+       EN3(3)=DXYZ_MULTI_COMB(JEL,3)
+       TOLP=MAX(1.0D-6,1.0D-3*PNSZ_MULTI_COMB(JEL))
+       TOLA=1.0D-3*PNSZ_MULTI_COMB(JEL)**2
+       DO IS=1, NSYS
+        IF (ISX.EQ.1.AND.ISY.EQ.0) THEN
+         XPB(1)=SY_MULTI(IS,1)*XET(1)
+         XPB(2)=SX_MULTI(IS,1)*XET(2)
+         XPB(3)=            XET(3)
+        ELSE
+         XPB(1)=SX_MULTI(IS,1)*XET(1)
+         XPB(2)=SY_MULTI(IS,1)*XET(2)
+         XPB(3)=            XET(3)
+        ENDIF
+        ! signed distance from XPB to the panel plane (use first vertex)
+        KA=NCON_MULTI_COMB(JEL,1)
+        DPLN=(XPB(1)-XYZ_GLOBAL_MULTI_COMB(KA,1))*EN3(1)   &
+            +(XPB(2)-XYZ_GLOBAL_MULTI_COMB(KA,2))*EN3(2)   &
+            +(XPB(3)-XYZ_GLOBAL_MULTI_COMB(KA,3))*EN3(3)
+        IF (ABS(DPLN).GT.TOLP) CYCLE
+        ! in-polygon: consistent sign of (edge x (XPB-vertex)).normal
+        SMIN= 1.0D30; SMAX=-1.0D30
+        DO KK=1, NCV
+         KA=NCON_MULTI_COMB(JEL,KK)
+         IF (KK.LT.NCV) THEN; KB=NCON_MULTI_COMB(JEL,KK+1); ELSE; KB=NCON_MULTI_COMB(JEL,1); ENDIF
+         EV(1)=XYZ_GLOBAL_MULTI_COMB(KB,1)-XYZ_GLOBAL_MULTI_COMB(KA,1)
+         EV(2)=XYZ_GLOBAL_MULTI_COMB(KB,2)-XYZ_GLOBAL_MULTI_COMB(KA,2)
+         EV(3)=XYZ_GLOBAL_MULTI_COMB(KB,3)-XYZ_GLOBAL_MULTI_COMB(KA,3)
+         WV(1)=XPB(1)-XYZ_GLOBAL_MULTI_COMB(KA,1)
+         WV(2)=XPB(2)-XYZ_GLOBAL_MULTI_COMB(KA,2)
+         WV(3)=XPB(3)-XYZ_GLOBAL_MULTI_COMB(KA,3)
+         CX3=EV(2)*WV(3)-EV(3)*WV(2)
+         CY3=EV(3)*WV(1)-EV(1)*WV(3)
+         CZ3=EV(1)*WV(2)-EV(2)*WV(1)
+         SVAL=CX3*EN3(1)+CY3*EN3(2)+CZ3*EN3(3)
+         SMIN=MIN(SMIN,SVAL); SMAX=MAX(SMAX,SVAL)
+        ENDDO
+        IF (SMIN.GE.-TOLA.OR.SMAX.LE.TOLA) ONBODY=.TRUE.
+       ENDDO
+       IF (ONBODY) EXIT
+      ENDDO
+
+      IF (ONBODY) THEN
+       SLD=2.D0*PI                  ! field point on the body surface
+      ELSE
+       SLD=4.D0*PI                  ! field point in the fluid (exterior)
+      ENDIF
       POT=POT/SLD
-      
+
       ! Diffraction mode: ISOL=1 outputs the total field (scattered + incident),
       ! so add back the incident potential F0. ISOL=2 outputs scattered only and
       ! omits F0. Radiation modes never add F0.
