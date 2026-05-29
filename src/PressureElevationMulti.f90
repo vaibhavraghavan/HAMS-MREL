@@ -178,11 +178,7 @@ CONTAINS
          ENDIF
         
 
-         IF (ISOL.EQ.1) THEN                               
-          XPOT(JEL)=XPOT(JEL)+TERM1-TERM2
-         ELSEIF (ISOL.EQ.2) THEN
-          XPOT(JEL)=XPOT(JEL)-TERM2 
-         ENDIF
+         XPOT(JEL)=XPOT(JEL)+TERM1-TERM2
         
        ENDDO
       ENDDO
@@ -200,7 +196,10 @@ CONTAINS
       SLD=4.D0*PI                                                                     
       POT=POT/SLD
       
-      IF (MD.EQ.(6*NBODY+1)) THEN
+      ! Diffraction mode: ISOL=1 outputs the total field (scattered + incident),
+      ! so add back the incident potential F0. ISOL=2 outputs scattered only and
+      ! omits F0. Radiation modes never add F0.
+      IF (MD.EQ.(6*NBODY+1).AND.ISOL.EQ.1) THEN
         IF (ABS(TP+1.D0).LT.1.E-6.OR.ABS(TP).LT.1.E-6) THEN                          ! This is for 0 or infinity wave frequency
          F0=0.D0
         ELSE
@@ -227,7 +226,10 @@ CONTAINS
       
       POT=0.D0
       
-      IF (MD.EQ.(6*NBODY+1)) THEN
+      ! Diffraction mode: ISOL=1 outputs the total field (scattered + incident),
+      ! so add back the incident potential F0. ISOL=2 outputs scattered only and
+      ! omits F0. Radiation modes never add F0.
+      IF (MD.EQ.(6*NBODY+1).AND.ISOL.EQ.1) THEN
         IF (ABS(TP+1.D0).LT.1.E-6.OR.ABS(TP).LT.1.E-6) THEN                          ! This is for 0 or infinity wave frequency
          F0=0.D0
         ELSE
