@@ -59,16 +59,8 @@ jobs:
         run: |
           set FPM_FC=ifx
           echo FPM_FC=%FPM_FC% >> "%GITHUB_ENV%"
-          rem  /heap-arrays0 is required to keep large multi-body cases from overflowing the
-          rem  default Windows thread stack; see docs/installation_windows.md.
-          set FPM_FFLAGS=/Qmkl /heap-arrays0
+          set FPM_FFLAGS=/Qmkl
           echo FPM_FFLAGS=%FPM_FFLAGS% >> "%GITHUB_ENV%"
-          rem  Setting FPM_LDFLAGS explicitly is required on Windows + ifx. Without it, fpm
-          rem  injects default GNU-style linker flags (e.g. -s for strip-symbols) which get
-          rem  routed to Git Bash's coreutils `link.exe` instead of MSVC link.exe and break
-          rem  the link step with: "link: unknown option -- s".
-          set FPM_LDFLAGS=/Qmkl
-          echo FPM_LDFLAGS=%FPM_LDFLAGS% >> "%GITHUB_ENV%"
 
       # Compile HAMS-MREL using FPM
       - name: Compile HAMS-MREL
