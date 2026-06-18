@@ -13,13 +13,13 @@ on:
 jobs:
   build-and-test:
     
-    # Runs on the current windows-latest image (which since ~June 15 2026 resolves to
-    # windows-2025 / windows-2025-vs2026). The new image places Git for Windows on PATH
-    # ahead of MSVC's tools, so when fpm + ifx invoke `link` during the link step, Git
-    # Bash's coreutils `link.exe` is picked up first and fails with "link: unknown option
-    # -- s". The Compile HAMS-MREL step below strips Git's `usr\bin` and `bin` from PATH
-    # so MSVC link.exe wins.
-    runs-on: windows-latest
+    # Pinned to windows-2022. Around mid-June 2026, GitHub migrated `windows-latest` from
+    # windows-2022 to windows-2025 / windows-2025-vs2026. The new image has a different
+    # Git for Windows install on PATH ahead of MSVC's tools — fpm + ifx's link step then
+    # resolves `link` to Git Bash's coreutils binary and the build fails with
+    # "link: unknown option -- s". Pinning to windows-2022 keeps the workflow on the
+    # image where it was last known to build cleanly.
+    runs-on: windows-2022
     
     steps:
 
@@ -67,15 +67,6 @@ jobs:
           echo FPM_FFLAGS=%FPM_FFLAGS% >> "%GITHUB_ENV%"
 
       # Compile HAMS-MREL using FPM
-      #
-      # `set PATH=%PATH:C:\Program Files\Git\usr\bin;=%` strips Git for Windows' coreutils
-      # directory from PATH so MSVC's link.exe (from setvars.bat) is found first when
-      # fpm + ifx invoke `link` during the link step. Without this, the older Git Bash
-      # `link.exe` (a hard-link utility, not a linker) is picked up and the build fails
-      # with "link: unknown option -- s".
       - name: Compile HAMS-MREL
-        shell: cmd
         run: |
-          set PATH=%PATH:C:\Program Files\Git\usr\bin;=%
-          set PATH=%PATH:C:\Program Files\Git\bin;=%
           fpm build
