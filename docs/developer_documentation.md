@@ -64,16 +64,15 @@ To simplify the installation of the dependencies mentioned above, we use Actions
 **The configuration for Linux is in [build_and_test_linux.yml](../.github/build_and_test_linux.yml).**
 
 > [!NOTE]
-> **Windows runner — `link.exe` PATH workaround.** Around mid-June 2026, GitHub
-> changed `windows-latest` from `windows-2022` to `windows-2025` / `windows-2025-vs2026`.
-> On the new image, Git for Windows' `C:\Program Files\Git\usr\bin` is on PATH
-> ahead of MSVC's tools. That directory contains a GNU coreutils `link.exe`
-> (the hard-link utility, not a linker), which gets resolved first when fpm + ifx
-> invoke `link` during the link step. The wrong `link` then rejects ifx's flags
-> with `link: unknown option -- s` and the build fails. The Windows workflow's
-> "Compile HAMS-MREL" step strips Git's `usr\bin` and `bin` from PATH so MSVC's
-> `link.exe` (added by `setvars.bat`) wins. If you ever rewrite this step,
-> keep the `set PATH=%PATH:C:\Program Files\Git\usr\bin;=%` lines.
+> **Windows runner pinned to `windows-2022`.** Around mid-June 2026, GitHub migrated
+> `windows-latest` to `windows-2025` / `windows-2025-vs2026`. The new image places
+> Git for Windows' coreutils `link.exe` on PATH ahead of MSVC's linker, which breaks
+> fpm + ifx's link step (`link: unknown option -- s`). The workflow is therefore
+> pinned to `windows-2022` until upstream fpm or setup-fortran handles the new image
+> cleanly. When you eventually migrate, the build step will need to strip
+> `C:\Program Files\Git\usr\bin` (and possibly `C:\Program Files\Git\bin`) from
+> PATH before `fpm build`, OR you'll need to use a different invocation that
+> ensures MSVC tools are resolved first.
 
 ### About GitHub Actions
 
