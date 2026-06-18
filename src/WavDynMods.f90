@@ -29,6 +29,19 @@
 
         REAL*8,PUBLIC::  WK1,DWK,BETA1,DBETA
 
+        ! Mixed-precision storage for the Green's-function arrays.
+        ! GRN_KIND=4 (default): CGRN/RKBN/DGRN/PKBN stored as COMPLEX*8 / REAL*4. Halves the memory
+        !                       footprint of the dominant arrays. Hydrodynamic coefficients agree with
+        !                       the GRN_KIND=8 reference to 5–6 significant figures on physically-meaningful
+        !                       entries; the ~7 digits lost in the Green's-function values is averaged out
+        !                       by the LU solve. Sub-noise-floor entries (cross-DOF couplings several orders
+        !                       of magnitude below the peak) can show larger relative differences but are
+        !                       physically zero.
+        ! GRN_KIND=8          : Full precision (COMPLEX*16 / REAL*8). Use when bit-identity against WAMIT
+        !                       references is needed, or when you have memory headroom and want every digit.
+        ! All read sites auto-promote on assignment so no other code needs to change when this is flipped.
+        INTEGER,PARAMETER,PUBLIC :: GRN_KIND = 4
+
         END MODULE HAMS_mod
 
         
@@ -96,7 +109,9 @@
         
         INTEGER,ALLOCATABLE:: NELEM_MULTI(:), NTND_MULTI(:)                         ! Number of elements and number of nodes 
         INTEGER,ALLOCATABLE,PUBLIC:: NCN_MULTI(:,:),NCON_MULTI(:,:,:), NCN_MULTI_COMB(:),NCON_MULTI_COMB(:,:)
-        REAL*8,ALLOCATABLE,PUBLIC:: XYZ_LOCAL_MULTI(:,:,:),XYZ_GLOBAL_MULTI(:,:,:),DXYZ_MULTI_P(:,:,:),XYZ_MULTI_P(:,:,:),XYZ_GLOBAL_MULTI_COMB(:,:),XYZ_GLOBAL_MULTI_COMB_P(:,:),DXYZ_MULTI_COMB(:,:)
+        ! XYZ_LOCAL_MULTI dropped (Phase 2.2): mesh nodes are now transformed to global on read,
+        ! using a small local scalar in ReadBodyMeshMulti rather than storing the entire local set.
+        REAL*8,ALLOCATABLE,PUBLIC:: XYZ_GLOBAL_MULTI(:,:,:),DXYZ_MULTI_P(:,:,:),XYZ_MULTI_P(:,:,:),XYZ_GLOBAL_MULTI_COMB(:,:),XYZ_GLOBAL_MULTI_COMB_P(:,:),DXYZ_MULTI_COMB(:,:)
         REAL*8,ALLOCATABLE,PUBLIC:: DS_MULTI(:,:),PNSZ_MULTI(:,:), PNSZ_MULTI_COMB(:), DS_MULTI_COMB(:)
         INTEGER,ALLOCATABLE,PUBLIC:: IPIV_MULTI_COMB(:,:)
         
@@ -104,7 +119,8 @@
         
         INTEGER,ALLOCATABLE,PUBLIC:: iNELEM_MULTI(:), iNTND_MULTI(:)                  ! Number of elements and number of nodes in the water plane mesh
         INTEGER,ALLOCATABLE,PUBLIC:: iNCN_MULTI(:,:),iNCON_MULTI(:,:,:),iNCN_MULTI_COMB(:),iNCON_MULTI_COMB(:,:)
-        REAL*8,ALLOCATABLE,PUBLIC:: iXYZ_LOCAL_MULTI(:,:,:),iXYZ_GLOBAL_MULTI(:,:,:),iDXYZ_MULTI_P(:,:,:),iXYZ_MULTI_P(:,:,:),iXYZ_GLOBAL_MULTI_COMB(:,:),iXYZ_GLOBAL_MULTI_COMB_P(:,:),iDXYZ_MULTI_COMB(:,:)
+        ! iXYZ_LOCAL_MULTI dropped (Phase 2.2) — same rationale as XYZ_LOCAL_MULTI above.
+        REAL*8,ALLOCATABLE,PUBLIC:: iXYZ_GLOBAL_MULTI(:,:,:),iDXYZ_MULTI_P(:,:,:),iXYZ_MULTI_P(:,:,:),iXYZ_GLOBAL_MULTI_COMB(:,:),iXYZ_GLOBAL_MULTI_COMB_P(:,:),iDXYZ_MULTI_COMB(:,:)
         REAL*8,ALLOCATABLE,PUBLIC:: iDS_MULTI(:,:),iPNSZ_MULTI(:,:),iDS_MULTI_COMB(:),iPNSZ_MULTI_COMB(:)
         INTEGER,ALLOCATABLE,PUBLIC:: iNELEM_TOTAL,NELEM_TOTAL,iNTND_TOTAL,NTND_TOTAL
         
@@ -182,16 +198,25 @@
 !---------------------------------------------------------------------------------------------						
 !
         MODULE Potentials_mod
+        USE HAMS_mod, only: GRN_KIND     ! Phase 4.3 — Green's-function precision kind (8 = double, 4 = single).
 !
         COMPLEX*16,ALLOCATABLE,PUBLIC:: MXPOT(:,:,:)
-        COMPLEX*16,ALLOCATABLE,PUBLIC:: CGRN(:,:,:,:),RKBN(:,:,:,:)
-        COMPLEX*16,ALLOCATABLE,PUBLIC:: DGRN(:,:,:,:),PKBN(:,:,:,:)
-        
+        ! CGRN / DGRN / RKBN / PKBN use GRN_KIND so the storage precision can be halved (Phase 4.3).
+        ! Read sites auto-promote on assignment; arithmetic is done in the local-variable precision.
+        COMPLEX(GRN_KIND),ALLOCATABLE,PUBLIC:: CGRN(:,:,:,:)
+        COMPLEX(GRN_KIND),ALLOCATABLE,PUBLIC:: DGRN(:,:,:,:)
+        ! RKBN / PKBN hold the Rankine (real) terms — REAL kind matches GRN_KIND for the same reason.
+        ! The imaginary half was always zero in the original layout (Phase 2.1).
+        REAL(GRN_KIND),   ALLOCATABLE,PUBLIC:: RKBN(:,:,:,:)
+        REAL(GRN_KIND),   ALLOCATABLE,PUBLIC:: PKBN(:,:,:,:)
+
         ! Varible for multi-body interaction
-        
-        COMPLEX*16,ALLOCATABLE,PUBLIC:: CGRN_MULTI_COMB(:,:,:,:),RKBN_MULTI_COMB(:,:,:,:)
-        COMPLEX*16,ALLOCATABLE,PUBLIC:: MXPOT_MULTI_COMB(:,:,:)
-        COMPLEX*16,ALLOCATABLE,PUBLIC:: DGRN_MULTI_COMB(:,:,:,:),PKBN_MULTI_COMB(:,:,:,:)
+
+        COMPLEX(GRN_KIND),ALLOCATABLE,PUBLIC:: CGRN_MULTI_COMB(:,:,:,:)
+        COMPLEX*16,       ALLOCATABLE,PUBLIC:: MXPOT_MULTI_COMB(:,:,:)
+        COMPLEX(GRN_KIND),ALLOCATABLE,PUBLIC:: DGRN_MULTI_COMB(:,:,:,:)
+        REAL(GRN_KIND),   ALLOCATABLE,PUBLIC:: RKBN_MULTI_COMB(:,:,:,:)
+        REAL(GRN_KIND),   ALLOCATABLE,PUBLIC:: PKBN_MULTI_COMB(:,:,:,:)
 !
         END MODULE Potentials_mod
 

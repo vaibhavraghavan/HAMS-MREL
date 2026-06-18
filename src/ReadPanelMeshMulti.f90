@@ -48,17 +48,15 @@ CONTAINS
 
       INTEGER M,IND,IEL,J
       INTEGER,INTENT(IN):: BODY_N,NBODY
-      REAL*8,INTENT(IN):: LCS_MULTI(NBODY,4)                                   !Array of location of the Local Coordinate System (LCS) along with the rotation of the LCS w.r.t the Global Coordinate System (GCS) 
-      
-        DO 10 IND=1,NTND_MULTI(BODY_N)                                                              ! The 10 is a label. Using this, statements to be continued if the loop does not progress can be mentioned with the CONTINUE command. Reference: http://www.personal.psu.edu/jhm/f90/lectures/15.html
-          READ(2,*) M, XYZ_LOCAL_MULTI(BODY_N,IND,1), XYZ_LOCAL_MULTI(BODY_N,IND,2), XYZ_LOCAL_MULTI(BODY_N,IND,3)
-10      CONTINUE
-        
-        ! Creating the array containing the Global coordinates
-        DO IND=1,NTND_MULTI(BODY_N)                                                   
-          XYZ_GLOBAL_MULTI(BODY_N,IND,1) = XYZ_GLOBAL_MULTI(BODY_N,IND,1)+LCS_MULTI(BODY_N,1)+COS(LCS_MULTI(BODY_N,4))*XYZ_LOCAL_MULTI(BODY_N,IND,1)-SIN(LCS_MULTI(BODY_N,4))*XYZ_LOCAL_MULTI(BODY_N,IND,2)
-          XYZ_GLOBAL_MULTI(BODY_N,IND,2) = XYZ_GLOBAL_MULTI(BODY_N,IND,2)+LCS_MULTI(BODY_N,2)+SIN(LCS_MULTI(BODY_N,4))*XYZ_LOCAL_MULTI(BODY_N,IND,1)+COS(LCS_MULTI(BODY_N,4))*XYZ_LOCAL_MULTI(BODY_N,IND,2)
-          XYZ_GLOBAL_MULTI(BODY_N,IND,3) = XYZ_LOCAL_MULTI(BODY_N,IND,3) ! This needs to be modified so any z-coordinate can be given
+      REAL*8,INTENT(IN):: LCS_MULTI(NBODY,4)                                   !Array of location of the Local Coordinate System (LCS) along with the rotation of the LCS w.r.t the Global Coordinate System (GCS)
+      REAL*8 XLOC(3)                                                           ! Per-node local coordinates (transient, replaces the previous XYZ_LOCAL_MULTI module array)
+
+        ! Read each node's local coordinates and transform to global in the same pass.
+        DO IND=1,NTND_MULTI(BODY_N)
+          READ(2,*) M, XLOC(1), XLOC(2), XLOC(3)
+          XYZ_GLOBAL_MULTI(BODY_N,IND,1) = XYZ_GLOBAL_MULTI(BODY_N,IND,1)+LCS_MULTI(BODY_N,1)+COS(LCS_MULTI(BODY_N,4))*XLOC(1)-SIN(LCS_MULTI(BODY_N,4))*XLOC(2)
+          XYZ_GLOBAL_MULTI(BODY_N,IND,2) = XYZ_GLOBAL_MULTI(BODY_N,IND,2)+LCS_MULTI(BODY_N,2)+SIN(LCS_MULTI(BODY_N,4))*XLOC(1)+COS(LCS_MULTI(BODY_N,4))*XLOC(2)
+          XYZ_GLOBAL_MULTI(BODY_N,IND,3) = XLOC(3) ! This needs to be modified so any z-coordinate can be given
         ENDDO
         
          DO J=1,3
@@ -80,28 +78,26 @@ CONTAINS
 !   !   inner water plane for multi-bodies
 
       SUBROUTINE ReadWTPLMeshMulti(BODY_N,NBODY,LCS_MULTI)
-      IMPLICIT   NONE  
+      IMPLICIT   NONE
 
       INTEGER M,N,IND,IEL,J
       INTEGER,INTENT(IN):: BODY_N,NBODY
-      REAL*8,INTENT(IN):: LCS_MULTI(NBODY,4)                                   !Array of location of the Local Coordinate System (LCS) along with the rotation of the LCS w.r.t the Global Coordinate System (GCS) 
+      REAL*8,INTENT(IN):: LCS_MULTI(NBODY,4)                                   !Array of location of the Local Coordinate System (LCS) along with the rotation of the LCS w.r.t the Global Coordinate System (GCS)
+      REAL*8 XLOC(3)                                                           ! Per-node local coordinates (transient, replaces the previous iXYZ_LOCAL_MULTI module array)
 !
 ! -------------------------------------------------------------------------
-! 
-      DO 10 IND=1,iNTND_MULTI(BODY_N)
-        READ(5,*) M, iXYZ_LOCAL_MULTI(BODY_N,IND,1), iXYZ_LOCAL_MULTI(BODY_N,IND,2), iXYZ_LOCAL_MULTI(BODY_N,IND,3)
-        IF (ABS(iXYZ_LOCAL_MULTI(BODY_N,IND,3)).GT.1.E-10) THEN
+!
+      ! Read each waterplane node's local coordinates and transform to global in the same pass.
+      DO IND=1,iNTND_MULTI(BODY_N)
+        READ(5,*) M, XLOC(1), XLOC(2), XLOC(3)
+        IF (ABS(XLOC(3)).GT.1.E-10) THEN
          Print *,' Error: Z Coordinate is not zero at Node No.',IND
          STOP
         ENDIF
-10    CONTINUE
-      
-      ! Creating the array containing the Global coordinates
-        DO IND=1,iNTND_MULTI(BODY_N)                                                   
-          iXYZ_GLOBAL_MULTI(BODY_N,IND,1) = iXYZ_GLOBAL_MULTI(BODY_N,IND,1)+LCS_MULTI(BODY_N,1)+COS(LCS_MULTI(BODY_N,4))*iXYZ_LOCAL_MULTI(BODY_N,IND,1)-SIN(LCS_MULTI(BODY_N,4))*iXYZ_LOCAL_MULTI(BODY_N,IND,2)
-          iXYZ_GLOBAL_MULTI(BODY_N,IND,2) = iXYZ_GLOBAL_MULTI(BODY_N,IND,2)+LCS_MULTI(BODY_N,2)+SIN(LCS_MULTI(BODY_N,4))*iXYZ_LOCAL_MULTI(BODY_N,IND,1)+COS(LCS_MULTI(BODY_N,4))*iXYZ_LOCAL_MULTI(BODY_N,IND,2)
-          iXYZ_GLOBAL_MULTI(BODY_N,IND,3) = iXYZ_LOCAL_MULTI(BODY_N,IND,3) ! This needs to be modified so any z-coordinate can be given
-        ENDDO
+        iXYZ_GLOBAL_MULTI(BODY_N,IND,1) = iXYZ_GLOBAL_MULTI(BODY_N,IND,1)+LCS_MULTI(BODY_N,1)+COS(LCS_MULTI(BODY_N,4))*XLOC(1)-SIN(LCS_MULTI(BODY_N,4))*XLOC(2)
+        iXYZ_GLOBAL_MULTI(BODY_N,IND,2) = iXYZ_GLOBAL_MULTI(BODY_N,IND,2)+LCS_MULTI(BODY_N,2)+SIN(LCS_MULTI(BODY_N,4))*XLOC(1)+COS(LCS_MULTI(BODY_N,4))*XLOC(2)
+        iXYZ_GLOBAL_MULTI(BODY_N,IND,3) = XLOC(3) ! This needs to be modified so any z-coordinate can be given
+      ENDDO
 
          DO J=1,3
           READ(5,*)

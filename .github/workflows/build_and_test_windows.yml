@@ -13,9 +13,13 @@ on:
 jobs:
   build-and-test:
     
-    # Use windows-latest runner.
-    # See https://github.com/actions/runner-images for a list of available runners.
-    runs-on: windows-latest
+    # Pinned to windows-2022. Around mid-June 2026, GitHub migrated `windows-latest` from
+    # windows-2022 to windows-2025 / windows-2025-vs2026. The new image has a different
+    # Git for Windows install on PATH ahead of MSVC's tools — fpm + ifx's link step then
+    # resolves `link` to Git Bash's coreutils binary and the build fails with
+    # "link: unknown option -- s". Pinning to windows-2022 keeps the workflow on the
+    # image where it was last known to build cleanly.
+    runs-on: windows-2022
     
     steps:
 

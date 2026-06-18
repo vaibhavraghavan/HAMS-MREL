@@ -39,67 +39,89 @@ MODULE CalGreenFuncMulti
 
    PUBLIC :: CALGREEN_MULTI
    PUBLIC :: CALGREEN_MULTI_IRR
+   PUBLIC :: BuildCombinedArrays
 
-   
+
 CONTAINS
+!   ----------------------------------------------------------------------------
+!      Pack the per-body padded geometry into the contiguous *_MULTI_COMB
+!      arrays. Called ONCE after the mesh-read / normal-calc setup phase, so
+!      the COMB construction (previously repeated every frequency in
+!      CALGREEN_MULTI / ASSB_LEFT_MULTI) no longer happens in the hot loop.
+!   ----------------------------------------------------------------------------
+
+      SUBROUTINE BuildCombinedArrays
+      IMPLICIT NONE
+
+      INTEGER BODY_N, IS_N, IE_N, JS_E, JE_E
+      INTEGER NTND_GLOBAL, NELEM_GLOBAL, iNTND_GLOBAL, iNELEM_GLOBAL
+
+      ! Hull mesh — always present.
+      NTND_GLOBAL  = 0
+      NELEM_GLOBAL = 0
+      DO BODY_N = 1, NBODY
+         IS_N = NTND_GLOBAL  + 1
+         IE_N = NTND_GLOBAL  + NTND_MULTI(BODY_N)
+         JS_E = NELEM_GLOBAL + 1
+         JE_E = NELEM_GLOBAL + NELEM_MULTI(BODY_N)
+
+         XYZ_GLOBAL_MULTI_COMB  (IS_N:IE_N,:) = XYZ_GLOBAL_MULTI(BODY_N, 1:NTND_MULTI(BODY_N), :)
+         XYZ_GLOBAL_MULTI_COMB_P(JS_E:JE_E,:) = XYZ_MULTI_P     (BODY_N, 1:NELEM_MULTI(BODY_N), :)
+         PNSZ_MULTI_COMB        (JS_E:JE_E)   = PNSZ_MULTI      (BODY_N, 1:NELEM_MULTI(BODY_N))
+         NCN_MULTI_COMB         (JS_E:JE_E)   = NCN_MULTI       (BODY_N, 1:NELEM_MULTI(BODY_N))
+         ! NCON values are local node IDs per body; offset by NTND_GLOBAL so they index XYZ_GLOBAL_MULTI_COMB.
+         NCON_MULTI_COMB        (JS_E:JE_E,:) = NCON_MULTI      (BODY_N, 1:NELEM_MULTI(BODY_N), :) + NTND_GLOBAL
+         DS_MULTI_COMB          (JS_E:JE_E)   = DS_MULTI        (BODY_N, 1:NELEM_MULTI(BODY_N))
+         DXYZ_MULTI_COMB        (JS_E:JE_E,:) = DXYZ_MULTI_P    (BODY_N, 1:NELEM_MULTI(BODY_N), :)
+
+         NTND_GLOBAL  = NTND_GLOBAL  + NTND_MULTI(BODY_N)
+         NELEM_GLOBAL = NELEM_GLOBAL + NELEM_MULTI(BODY_N)
+      ENDDO
+
+      ! Waterplane mesh — only allocated and only present when IRSP > 0.
+      IF (IRSP .NE. 0) THEN
+         iNTND_GLOBAL  = 0
+         iNELEM_GLOBAL = 0
+         DO BODY_N = 1, NBODY
+            IF (iNELEM_MULTI(BODY_N) .GT. 0) THEN
+               IS_N = iNTND_GLOBAL  + 1
+               IE_N = iNTND_GLOBAL  + iNTND_MULTI(BODY_N)
+               JS_E = iNELEM_GLOBAL + 1
+               JE_E = iNELEM_GLOBAL + iNELEM_MULTI(BODY_N)
+
+               iXYZ_GLOBAL_MULTI_COMB  (IS_N:IE_N,:) = iXYZ_GLOBAL_MULTI(BODY_N, 1:iNTND_MULTI(BODY_N), :)
+               iXYZ_GLOBAL_MULTI_COMB_P(JS_E:JE_E,:) = iXYZ_MULTI_P     (BODY_N, 1:iNELEM_MULTI(BODY_N), :)
+               iPNSZ_MULTI_COMB        (JS_E:JE_E)   = iPNSZ_MULTI      (BODY_N, 1:iNELEM_MULTI(BODY_N))
+               iNCN_MULTI_COMB         (JS_E:JE_E)   = iNCN_MULTI       (BODY_N, 1:iNELEM_MULTI(BODY_N))
+               iNCON_MULTI_COMB        (JS_E:JE_E,:) = iNCON_MULTI      (BODY_N, 1:iNELEM_MULTI(BODY_N), :) + iNTND_GLOBAL
+               iDS_MULTI_COMB          (JS_E:JE_E)   = iDS_MULTI        (BODY_N, 1:iNELEM_MULTI(BODY_N))
+               iDXYZ_MULTI_COMB        (JS_E:JE_E,:) = iDXYZ_MULTI_P    (BODY_N, 1:iNELEM_MULTI(BODY_N), :)
+            ENDIF
+            iNTND_GLOBAL  = iNTND_GLOBAL  + iNTND_MULTI(BODY_N)
+            iNELEM_GLOBAL = iNELEM_GLOBAL + iNELEM_MULTI(BODY_N)
+         ENDDO
+      ENDIF
+
+      RETURN
+      END SUBROUTINE BuildCombinedArrays
+
 !   ----------------------------------------------------------------------------
 !      Calculate WAVE TERM's value of Green function for arbitrary two points                              ! This is without irregular frequencies
 !   ----------------------------------------------------------------------------
 
       SUBROUTINE CALGREEN_MULTI
-      IMPLICIT NONE 
-      
-      INTEGER  IEL,JEL,IS,IP,IRR,FLAG,BODY_N,NELEM_GLOBAL,NTND_GLOBAL
+      IMPLICIT NONE
+
+      INTEGER  IEL,JEL,IS,IP,IRR,FLAG
       REAL*8   XQ,YQ,ZQ,XP,YP,ZP,SIJ,DIJ(3),DIST
       COMPLEX*16  GRN(4),DPOX,DPOY,DPOZ
 
+      ! The per-body→COMB packing previously inlined here is now done once in BuildCombinedArrays
+      ! at startup (Phase 2.3) — those copies are frequency-independent.
       IRR=1
-      NTND_GLOBAL=0                       ! Variable is used to track the number of nodes in the combined coordinate matrix that have been filled in with the global coordinates
-      NELEM_GLOBAL=0                      ! Variable is used to track the number of elements in the combined coordinate matrix that have been filled in with the global coordinates
-      
-      !Filling the Global coordinate array (this is derived from the coordinates of the panel centers), PNSZ, NCON and NCN. The explicit length for the quantities on the right side (example XYZ_GLOBAL_MULTI(BODY_N,1:NTND_MULTI(BODY_N),:)) is done since the number of panels in different bodies can be different.
-      DO BODY_N=1,NBODY
-        IF (BODY_N.EQ.1) THEN
-         XYZ_GLOBAL_MULTI_COMB(1:NTND_MULTI(BODY_N),:)=XYZ_GLOBAL_MULTI(BODY_N,1:NTND_MULTI(BODY_N),:)
-         XYZ_GLOBAL_MULTI_COMB_P(1:NELEM_MULTI(BODY_N),:)=XYZ_MULTI_P(BODY_N,1:NELEM_MULTI(BODY_N),:)
-         PNSZ_MULTI_COMB(1:NELEM_MULTI(BODY_N))=PNSZ_MULTI(BODY_N,1:NELEM_MULTI(BODY_N))
-         NCN_MULTI_COMB(1:NELEM_MULTI(BODY_N))=NCN_MULTI(BODY_N,1:NELEM_MULTI(BODY_N))
-         NCON_MULTI_COMB(1:NELEM_MULTI(BODY_N),:)=NCON_MULTI(BODY_N,1:NELEM_MULTI(BODY_N),:)
-        ELSEIF (BODY_N.EQ.NBODY) THEN
-         XYZ_GLOBAL_MULTI_COMB(NTND_GLOBAL+1:TNTND,:)=XYZ_GLOBAL_MULTI(BODY_N,1:NTND_MULTI(BODY_N),:)
-         XYZ_GLOBAL_MULTI_COMB_P(NELEM_GLOBAL+1:TNELEM,:)=XYZ_MULTI_P(BODY_N,1:NELEM_MULTI(BODY_N),:)
-         PNSZ_MULTI_COMB(NELEM_GLOBAL+1:TNELEM)=PNSZ_MULTI(BODY_N,1:NELEM_MULTI(BODY_N))
-         NCN_MULTI_COMB(NELEM_GLOBAL+1:TNELEM)=NCN_MULTI(BODY_N,1:NELEM_MULTI(BODY_N))
-         NCON_MULTI_COMB(NELEM_GLOBAL+1:TNELEM,:)=NCON_MULTI(BODY_N,1:NELEM_MULTI(BODY_N),:)
-        ELSE
-         XYZ_GLOBAL_MULTI_COMB(NTND_GLOBAL+1:NTND_GLOBAL+NTND_MULTI(BODY_N),:)=XYZ_GLOBAL_MULTI(BODY_N,1:NTND_MULTI(BODY_N),:)
-         XYZ_GLOBAL_MULTI_COMB_P(NELEM_GLOBAL+1:NELEM_GLOBAL+NELEM_MULTI(BODY_N),:)=XYZ_MULTI_P(BODY_N,1:NELEM_MULTI(BODY_N),:)
-         PNSZ_MULTI_COMB(NELEM_GLOBAL+1:NELEM_GLOBAL+NELEM_MULTI(BODY_N))=PNSZ_MULTI(BODY_N,1:NELEM_MULTI(BODY_N))
-         NCN_MULTI_COMB(NELEM_GLOBAL+1:NELEM_GLOBAL+NELEM_MULTI(BODY_N))=NCN_MULTI(BODY_N,1:NELEM_MULTI(BODY_N))
-         NCON_MULTI_COMB(NELEM_GLOBAL+1:NELEM_GLOBAL+NELEM_MULTI(BODY_N),:)=NCON_MULTI(BODY_N,1:NELEM_MULTI(BODY_N),:)
-        ENDIF
-        NTND_GLOBAL=NTND_GLOBAL+NTND_MULTI(BODY_N)
-        NELEM_GLOBAL=NELEM_GLOBAL+NELEM_MULTI(BODY_N)
-      ENDDO
-      
-      ! The panel node numbers need to be modified for the combination array since the node numbers in the first and second body for example can be the same if the bodies are exactly the same
-      NELEM_GLOBAL=0
-      NTND_GLOBAL=0
-      DO BODY_N=1,NBODY
-        IF (BODY_N.EQ.1) THEN
-         NCON_MULTI_COMB(1:NELEM_MULTI(BODY_N),:)=NCON_MULTI_COMB(1:NELEM_MULTI(BODY_N),:)
-        ELSEIF (BODY_N.EQ.NBODY) THEN
-         NCON_MULTI_COMB(NELEM_GLOBAL+1:TNELEM,:)=NTND_GLOBAL+NCON_MULTI_COMB(NELEM_GLOBAL+1:TNELEM,:)
-        ELSE
-         NCON_MULTI_COMB(NELEM_GLOBAL+1:NELEM_GLOBAL+NELEM_MULTI(BODY_N),:)=NTND_GLOBAL+NCON_MULTI_COMB(NELEM_GLOBAL+1:NELEM_GLOBAL+NELEM_MULTI(BODY_N),:)
-        ENDIF
-        NTND_GLOBAL=NTND_GLOBAL+NTND_MULTI(BODY_N)
-        NELEM_GLOBAL=NELEM_GLOBAL+NELEM_MULTI(BODY_N)
-      ENDDO
-      
 
 !$OMP PARALLEL NUM_THREADS(NTHREAD)                                                                        ! This is the syntax for parallelization
-!$OMP DO PRIVATE(IEL,JEL,IS,XQ,XP,YQ,YP,ZQ,ZP,SIJ,DIJ,GRN,FLAG)
+!$OMP DO PRIVATE(IEL,JEL,IS,XQ,XP,YQ,YP,ZQ,ZP,SIJ,DIJ,GRN,FLAG) SCHEDULE(DYNAMIC,16)
 
       DO IEL=1, TNELEM
 
@@ -166,95 +188,16 @@ CONTAINS
 
       SUBROUTINE CALGREEN_MULTI_IRR
       IMPLICIT NONE
-      
-      INTEGER  IEL,JEL,IS,IP,IRR,FLAG,BODY_N,NELEM_GLOBAL,NTND_GLOBAL,iNELEM_GLOBAL,iNTND_GLOBAL
+
+      INTEGER  IEL,JEL,IS,IP,IRR,FLAG
       REAL*8   XQ,YQ,ZQ,XP,YP,ZP,SIJ,DIJ(3),DIST
       COMPLEX*16  GRN(4),DPOX,DPOY,DPOZ
 
-      NTND_GLOBAL=0                       ! Variable is used to track the number of nodes in the combined coordinate matrix that have been filled in with the global coordinates
-      NELEM_GLOBAL=0                      ! Variable is used to track the number of elements in the combined coordinate matrix that have been filled in with the global coordinates
-      iNTND_GLOBAL=0                       ! Variable is used to track the number of nodes (water plane mesh) in the combined coordinate matrix that have been filled in with the global coordinates
-      iNELEM_GLOBAL=0                      ! Variable is used to track the number of elements (water plane mesh) in the combined coordinate matrix that have been filled in with the global coordinates
-      
-      !Filling the Global coordinate array (this is derived from the coordinates of the panel centers), PNSZ, NCON and NCN. The explicit length for the quantities on the right side (example XYZ_GLOBAL_MULTI(BODY_N,1:NTND_MULTI(BODY_N),:)) is done since the number of panels in different bodies can be different.
-      DO BODY_N=1,NBODY
-        IF (BODY_N.EQ.1) THEN
-         XYZ_GLOBAL_MULTI_COMB(1:NTND_MULTI(BODY_N),:)=XYZ_GLOBAL_MULTI(BODY_N,1:NTND_MULTI(BODY_N),:)
-         XYZ_GLOBAL_MULTI_COMB_P(1:NELEM_MULTI(BODY_N),:)=XYZ_MULTI_P(BODY_N,1:NELEM_MULTI(BODY_N),:)
-         PNSZ_MULTI_COMB(1:NELEM_MULTI(BODY_N))=PNSZ_MULTI(BODY_N,1:NELEM_MULTI(BODY_N))
-         NCN_MULTI_COMB(1:NELEM_MULTI(BODY_N))=NCN_MULTI(BODY_N,1:NELEM_MULTI(BODY_N))
-         NCON_MULTI_COMB(1:NELEM_MULTI(BODY_N),:)=NCON_MULTI(BODY_N,1:NELEM_MULTI(BODY_N),:)
-         IF (iNELEM_MULTI(BODY_N).GT.0) THEN
-          iXYZ_GLOBAL_MULTI_COMB(1:iNTND_MULTI(BODY_N),:)=iXYZ_GLOBAL_MULTI(BODY_N,1:iNTND_MULTI(BODY_N),:)
-          iXYZ_GLOBAL_MULTI_COMB_P(1:iNELEM_MULTI(BODY_N),:)=iXYZ_MULTI_P(BODY_N,1:iNELEM_MULTI(BODY_N),:)
-          iPNSZ_MULTI_COMB(1:iNELEM_MULTI(BODY_N))=iPNSZ_MULTI(BODY_N,1:iNELEM_MULTI(BODY_N))
-          iNCN_MULTI_COMB(1:iNELEM_MULTI(BODY_N))=iNCN_MULTI(BODY_N,1:iNELEM_MULTI(BODY_N))
-          iNCON_MULTI_COMB(1:iNELEM_MULTI(BODY_N),:)=iNCON_MULTI(BODY_N,1:iNELEM_MULTI(BODY_N),:)
-         ENDIF
-        ELSEIF (BODY_N.EQ.NBODY) THEN
-         XYZ_GLOBAL_MULTI_COMB(NTND_GLOBAL+1:NTND_TOTAL,:)=XYZ_GLOBAL_MULTI(BODY_N,1:NTND_MULTI(BODY_N),:)
-         XYZ_GLOBAL_MULTI_COMB_P(NELEM_GLOBAL+1:NELEM_TOTAL,:)=XYZ_MULTI_P(BODY_N,1:NELEM_MULTI(BODY_N),:)
-         PNSZ_MULTI_COMB(NELEM_GLOBAL+1:NELEM_TOTAL)=PNSZ_MULTI(BODY_N,1:NELEM_MULTI(BODY_N))
-         NCN_MULTI_COMB(NELEM_GLOBAL+1:NELEM_TOTAL)=NCN_MULTI(BODY_N,1:NELEM_MULTI(BODY_N))
-         NCON_MULTI_COMB(NELEM_GLOBAL+1:NELEM_TOTAL,:)=NCON_MULTI(BODY_N,1:NELEM_MULTI(BODY_N),:)
-         IF (iNELEM_MULTI(BODY_N).GT.0) THEN
-          iXYZ_GLOBAL_MULTI_COMB(iNTND_GLOBAL+1:iNTND_TOTAL,:)=iXYZ_GLOBAL_MULTI(BODY_N,1:iNTND_MULTI(BODY_N),:)
-          iXYZ_GLOBAL_MULTI_COMB_P(iNELEM_GLOBAL+1:iNELEM_TOTAL,:)=iXYZ_MULTI_P(BODY_N,1:iNELEM_MULTI(BODY_N),:)
-          iPNSZ_MULTI_COMB(iNELEM_GLOBAL+1:iNELEM_TOTAL)=iPNSZ_MULTI(BODY_N,1:iNELEM_MULTI(BODY_N))
-          iNCN_MULTI_COMB(iNELEM_GLOBAL+1:iNELEM_TOTAL)=iNCN_MULTI(BODY_N,1:iNELEM_MULTI(BODY_N))
-          iNCON_MULTI_COMB(iNELEM_GLOBAL+1:iNELEM_TOTAL,:)=iNCON_MULTI(BODY_N,1:iNELEM_MULTI(BODY_N),:)
-         ENDIF
-        ELSE
-         XYZ_GLOBAL_MULTI_COMB(NTND_GLOBAL+1:NTND_GLOBAL+NTND_MULTI(BODY_N),:)=XYZ_GLOBAL_MULTI(BODY_N,1:NTND_MULTI(BODY_N),:)
-         XYZ_GLOBAL_MULTI_COMB_P(NELEM_GLOBAL+1:NELEM_GLOBAL+NELEM_MULTI(BODY_N),:)=XYZ_MULTI_P(BODY_N,1:NELEM_MULTI(BODY_N),:)
-         PNSZ_MULTI_COMB(NELEM_GLOBAL+1:NELEM_GLOBAL+NELEM_MULTI(BODY_N))=PNSZ_MULTI(BODY_N,1:NELEM_MULTI(BODY_N))
-         NCN_MULTI_COMB(NELEM_GLOBAL+1:NELEM_GLOBAL+NELEM_MULTI(BODY_N))=NCN_MULTI(BODY_N,1:NELEM_MULTI(BODY_N))
-         NCON_MULTI_COMB(NELEM_GLOBAL+1:NELEM_GLOBAL+NELEM_MULTI(BODY_N),:)=NCON_MULTI(BODY_N,1:NELEM_MULTI(BODY_N),:)
-         IF (iNELEM_MULTI(BODY_N).GT.0) THEN
-          iXYZ_GLOBAL_MULTI_COMB(iNTND_GLOBAL+1:iNTND_GLOBAL+iNTND_MULTI(BODY_N),:)=iXYZ_GLOBAL_MULTI(BODY_N,1:iNTND_MULTI(BODY_N),:)
-          iXYZ_GLOBAL_MULTI_COMB_P(iNELEM_GLOBAL+1:iNELEM_GLOBAL+iNELEM_MULTI(BODY_N),:)=iXYZ_MULTI_P(BODY_N,1:iNELEM_MULTI(BODY_N),:)
-          iPNSZ_MULTI_COMB(iNELEM_GLOBAL+1:iNELEM_GLOBAL+iNELEM_MULTI(BODY_N))=iPNSZ_MULTI(BODY_N,1:iNELEM_MULTI(BODY_N))
-          iNCN_MULTI_COMB(iNELEM_GLOBAL+1:iNELEM_GLOBAL+iNELEM_MULTI(BODY_N))=iNCN_MULTI(BODY_N,1:iNELEM_MULTI(BODY_N))
-          iNCON_MULTI_COMB(iNELEM_GLOBAL+1:iNELEM_GLOBAL+iNELEM_MULTI(BODY_N),:)=iNCON_MULTI(BODY_N,1:iNELEM_MULTI(BODY_N),:)   
-         ENDIF
-        ENDIF
-        NTND_GLOBAL=NTND_GLOBAL+NTND_MULTI(BODY_N)
-        NELEM_GLOBAL=NELEM_GLOBAL+NELEM_MULTI(BODY_N)
-        iNTND_GLOBAL=iNTND_GLOBAL+iNTND_MULTI(BODY_N)
-        iNELEM_GLOBAL=iNELEM_GLOBAL+iNELEM_MULTI(BODY_N)
-      ENDDO
-      
-      ! The panel node numbers need to be modified for the combination array since the node numbers in the first and second body for example can be the same if the bodies are exactly the same
-      NELEM_GLOBAL=0
-      NTND_GLOBAL=0
-      iNELEM_GLOBAL=0
-      iNTND_GLOBAL=0
-      DO BODY_N=1,NBODY
-        IF (BODY_N.EQ.1) THEN
-         NCON_MULTI_COMB(1:NELEM_MULTI(BODY_N),:)=NCON_MULTI_COMB(1:NELEM_MULTI(BODY_N),:)
-         IF (iNELEM_MULTI(BODY_N).GT.0) THEN
-          iNCON_MULTI_COMB(1:iNELEM_MULTI(BODY_N),:)=iNCON_MULTI_COMB(1:iNELEM_MULTI(BODY_N),:)
-         ENDIF
-        ELSEIF (BODY_N.EQ.NBODY) THEN
-         NCON_MULTI_COMB(NELEM_GLOBAL+1:NELEM_TOTAL,:)=NTND_GLOBAL+NCON_MULTI_COMB(NELEM_GLOBAL+1:NELEM_TOTAL,:)
-         IF (iNELEM_MULTI(BODY_N).GT.0) THEN
-          iNCON_MULTI_COMB(iNELEM_GLOBAL+1:iNELEM_TOTAL,:)=iNTND_GLOBAL+iNCON_MULTI_COMB(iNELEM_GLOBAL+1:iNELEM_TOTAL,:)
-         ENDIF
-        ELSE
-         NCON_MULTI_COMB(NELEM_GLOBAL+1:NELEM_GLOBAL+NELEM_MULTI(BODY_N),:)=NTND_GLOBAL+NCON_MULTI_COMB(NELEM_GLOBAL+1:NELEM_GLOBAL+NELEM_MULTI(BODY_N),:)
-         IF (iNELEM_MULTI(BODY_N).GT.0) THEN
-          iNCON_MULTI_COMB(iNELEM_GLOBAL+1:iNELEM_GLOBAL+iNELEM_MULTI(BODY_N),:)=iNTND_GLOBAL+iNCON_MULTI_COMB(iNELEM_GLOBAL+1:iNELEM_GLOBAL+iNELEM_MULTI(BODY_N),:)
-         ENDIF
-        ENDIF
-        NTND_GLOBAL=NTND_GLOBAL+NTND_MULTI(BODY_N)
-        NELEM_GLOBAL=NELEM_GLOBAL+NELEM_MULTI(BODY_N)
-        iNTND_GLOBAL=iNTND_GLOBAL+iNTND_MULTI(BODY_N)
-        iNELEM_GLOBAL=iNELEM_GLOBAL+iNELEM_MULTI(BODY_N)
-      ENDDO
-      
+      ! The per-body→COMB packing previously inlined here is now done once in BuildCombinedArrays
+      ! at startup (Phase 2.3) — those copies are frequency-independent.
       IRR=1
 !$OMP PARALLEL NUM_THREADS(NTHREAD)                                                                        ! This is the syntax for parallelization
-!$OMP DO PRIVATE(IEL,JEL,IS,XQ,XP,YQ,YP,ZQ,ZP,SIJ,DIJ,GRN,FLAG)
+!$OMP DO PRIVATE(IEL,JEL,IS,XQ,XP,YQ,YP,ZQ,ZP,SIJ,DIJ,GRN,FLAG) SCHEDULE(DYNAMIC,16)
 
       DO IEL=1, NELEM_TOTAL
 
@@ -314,7 +257,7 @@ CONTAINS
 
       IRR=3
 
-!$OMP PARALLEL DO PRIVATE(IEL,JEL,IS,XQ,XP,YQ,YP,ZQ,ZP,SIJ,DIJ,GRN,FLAG)
+!$OMP PARALLEL DO PRIVATE(IEL,JEL,IS,XQ,XP,YQ,YP,ZQ,ZP,SIJ,DIJ,GRN,FLAG) SCHEDULE(DYNAMIC,16)
 
       DO IEL=1, iNELEM_TOTAL
           

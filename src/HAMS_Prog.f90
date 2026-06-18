@@ -93,7 +93,8 @@ program HAMS_MREL
     
     integer :: II,KK,MD,MD1,MD2,FILE_M,FILE_N,NELEM_GLOBAL,err,argcount
     integer, allocatable :: NELEM_TOTAL_RAD(:)
-    character(len=100) :: FILE_NUMBER,MESH_MULTI,HYDROSTATIC_MULTI, WATERPLANEMESH_MULTI
+    character(len=16)  :: FILE_NUMBER                                       ! Body index as string, e.g. "1", "27"
+    character(len=300) :: MESH_MULTI,HYDROSTATIC_MULTI, WATERPLANEMESH_MULTI ! Full file paths — must be > inputdir length + filename
     character(len=260) :: inputdir, outputdir ! 260 is the max lengths for paths on Windows
     logical :: success
 
@@ -120,9 +121,6 @@ program HAMS_MREL
     write(*,'(80A)') ' -----------------------------------------------------------------------------------------------'
     print*
 
-    allocate(LCS_MULTI(1,1)) ! This is only to be able to use LCS_MULTI in the main HAMS application
-    deallocate(LCS_MULTI)
-      
     ! Define output and output directories
     argcount = command_argument_count()
     if (argcount == 2) then
@@ -416,16 +414,18 @@ program HAMS_MREL
             ENDIF
         ENDDO
        
-        ! Allocation of variables 
-        ALLOCATE(XYZ_LOCAL_MULTI(NBODY,MAXVAL(NTND_MULTI),3),XYZ_GLOBAL_MULTI(NBODY,MAXVAL(NTND_MULTI),3),DS_MULTI(NBODY,MAXVAL(NELEM_MULTI)),PNSZ_MULTI(NBODY,MAXVAL(NELEM_MULTI))) 
+        ! Allocation of variables
+        ALLOCATE(XYZ_GLOBAL_MULTI(NBODY,MAXVAL(NTND_MULTI),3),DS_MULTI(NBODY,MAXVAL(NELEM_MULTI)),PNSZ_MULTI(NBODY,MAXVAL(NELEM_MULTI)))
         ALLOCATE(NCN_MULTI(NBODY,MAXVAL(NELEM_MULTI)),NCON_MULTI(NBODY,MAXVAL(NELEM_MULTI),4))
         ALLOCATE(XYZ_MULTI_P(NBODY,MAXVAL(NELEM_MULTI),3),DXYZ_MULTI_P(NBODY,MAXVAL(NELEM_MULTI),6))
-       
+        XYZ_GLOBAL_MULTI = 0.D0   ! ReadBodyMeshMulti accumulates into this array; ensure clean start.
+
         IF (IRSP.EQ.1) THEN
             ! Allocation of variables for Irregular frequency removal
-            ALLOCATE(iXYZ_LOCAL_MULTI(NBODY,MAXVAL(iNTND_MULTI),3),iXYZ_GLOBAL_MULTI(NBODY,MAXVAL(iNTND_MULTI),3),iDS_MULTI(NBODY,MAXVAL(iNELEM_MULTI)),iPNSZ_MULTI(NBODY,MAXVAL(iNELEM_MULTI)))
+            ALLOCATE(iXYZ_GLOBAL_MULTI(NBODY,MAXVAL(iNTND_MULTI),3),iDS_MULTI(NBODY,MAXVAL(iNELEM_MULTI)),iPNSZ_MULTI(NBODY,MAXVAL(iNELEM_MULTI)))
             ALLOCATE(iNCN_MULTI(NBODY,MAXVAL(iNELEM_MULTI)),iNCON_MULTI(NBODY,MAXVAL(iNELEM_MULTI),4))
             ALLOCATE(iXYZ_MULTI_P(NBODY,MAXVAL(iNELEM_MULTI),3),iDXYZ_MULTI_P(NBODY,MAXVAL(iNELEM_MULTI),6))
+            iXYZ_GLOBAL_MULTI = 0.D0
         ENDIF
        
         ! Beginning the procedure for reading the mesh and hydrostatic files in detail.
@@ -559,7 +559,15 @@ program HAMS_MREL
             CLOSE(4)
             CALL CalNormalsMulti(FILE_M,IRSP,TRIM(inputdir))                                                      ! This is implemented for no removal of irregular frequencies at this point
         ENDDO
-       
+
+        ! Pack the per-body padded geometry into the contiguous _COMB arrays once.
+        ! This was previously redone every frequency inside CALGREEN_MULTI / ASSB_LEFT_MULTI (Phase 2.3 / 3.1).
+        CALL BuildCombinedArrays
+        ! The per-body padded arrays are no longer referenced; free them now.
+        DEALLOCATE(XYZ_GLOBAL_MULTI, XYZ_MULTI_P, DS_MULTI, PNSZ_MULTI, NCN_MULTI, NCON_MULTI, DXYZ_MULTI_P)
+        IF (IRSP.EQ.1) THEN
+            DEALLOCATE(iXYZ_GLOBAL_MULTI, iXYZ_MULTI_P, iDS_MULTI, iPNSZ_MULTI, iNCN_MULTI, iNCON_MULTI, iDXYZ_MULTI_P)
+        ENDIF
 
         call CreateErrorCheckFile(trim(outputdir), NBODY)
 
@@ -722,47 +730,36 @@ program HAMS_MREL
         CALL ReorderAmssDamp('Output/Wamit_format/AmssDamp.1', NPER, 6*NBODY) !Reorder the WAMIT format .1 file
         CLOSE(61)
        
-        !TODO De allocate the arrays after utilization
-        
-        !DO KK=1,NPER
-        !   DO MD1=1,6
-        !       DO MD2=1,6
-        !           CALL PrintBody_RealVal(70+10*(MD1-1)+MD2,WVFQ(KK),NBETA,'AddedMass',AMAS(KK,MD1,MD2))
-        !           CALL PrintBody_RealVal(130+10*(MD1-1)+MD2,WVFQ(KK),NBETA,'WaveDamping',BDMP(KK,MD1,MD2))
-        !       ENDDO
-        !   ENDDO
-        ! 
-        !   DO MD=1,6
-        !       CALL PrintBody_CmplxVal( 190+MD,WVFQ(KK),NBETA,'Excitation',EXFC(KK,:,MD))
-        !       CALL PrintBody_CmplxVal(200+MD,WVFQ(KK),NBETA,'Motion',DSPL(KK,:,MD))
-        !   ENDDO
-        !
-        !ENDDO
-        ! ================================================================
+        ! Deallocate all multi-body arrays in reverse order of allocation.
+        DEALLOCATE(NELEM_TOTAL_RAD)
+        DEALLOCATE(DS_MULTI_COMB,DXYZ_MULTI_COMB)
+        DEALLOCATE(XYZ_GLOBAL_MULTI_COMB,XYZ_GLOBAL_MULTI_COMB_P,PNSZ_MULTI_COMB,NCN_MULTI_COMB,NCON_MULTI_COMB)
+        DEALLOCATE(BLNR_MULTI,BQDR_MULTI)
+        DEALLOCATE(WVFQ,EXFC_MULTI,EXFC_MULTI_COMB,DSPL_MULTI_COMB,AMAS_MULTI,BDMP_MULTI,AMAS_MULTI_COMB,BDMP_MULTI_COMB)
+        DEALLOCATE(MXPOT_MULTI_COMB)
+        DEALLOCATE(CGRN_MULTI_COMB,RKBN_MULTI_COMB)
+        DEALLOCATE(AMAT_MULTI,BRMAT_MULTI,BDMAT_MULTI,IPIV_MULTI_COMB)
+        DEALLOCATE(IB_MULTI,MATX_MULTI,CRS_MULTI,KSTF_MULTI,RAO_MULTI)
+        DEALLOCATE(XG_MULTI,XB_MULTI,VOL_MULTI,MASS_MULTI)
+        ! XYZ_GLOBAL_MULTI / DS_MULTI / PNSZ_MULTI / NCN_MULTI / NCON_MULTI / XYZ_MULTI_P / DXYZ_MULTI_P
+        ! were already freed right after BuildCombinedArrays (Phase 2.3).
+        DEALLOCATE(NELEM_MULTI,NTND_MULTI)
+        IF (ALLOCATED(WVHD))      DEALLOCATE(WVHD)
+        IF (ALLOCATED(WVNB))      DEALLOCATE(WVNB)
+        IF (ALLOCATED(XFP))       DEALLOCATE(XFP)
+        IF (ALLOCATED(LCS_MULTI)) DEALLOCATE(LCS_MULTI)
+        IF (IRSP.EQ.1) THEN
+            DEALLOCATE(DSPL_MULTI)
+            DEALLOCATE(CMAT_MULTI,DRMAT_MULTI,DDMAT_MULTI)
+            DEALLOCATE(DGRN_MULTI_COMB,PKBN_MULTI_COMB)
+            DEALLOCATE(iDS_MULTI_COMB,iDXYZ_MULTI_COMB)
+            DEALLOCATE(iXYZ_GLOBAL_MULTI_COMB,iXYZ_GLOBAL_MULTI_COMB_P,iPNSZ_MULTI_COMB,iNCN_MULTI_COMB,iNCON_MULTI_COMB)
+            ! iXYZ_GLOBAL_MULTI / iDS_MULTI / iPNSZ_MULTI / iNCN_MULTI / iNCON_MULTI / iXYZ_MULTI_P / iDXYZ_MULTI_P
+            ! were already freed right after BuildCombinedArrays (Phase 2.3).
+            DEALLOCATE(iNELEM_MULTI,iNTND_MULTI)
+        ENDIF
 
-        !DO MD=1,6
-        !   CALL PrintEnd(190+MD)
-        !   CALL PrintEnd(200+MD)
-        !ENDDO
-        ! 
-        !DO MD1=1,6
-        !   DO MD2=1,6
-        !       CALL PrintEnd(70+10*(MD1-1)+MD2)
-        !       CALL PrintEnd(130+10*(MD1-1)+MD2)
-        !   ENDDO
-        !ENDDO
-        ! 
-        !DEALLOCATE(XYZ,DS,NCN,NCON,XYZ_P,DXYZ_P)
-        !DEALLOCATE(AMAT,BRMAT,BDMAT,CGRN,RKBN,IPIV)
-        !DEALLOCATE(MXPOT,EXFC,DSPL,AMAS,BDMP)
-        !DEALLOCATE(WVFQ,WVHD,WVNB,XFP,PNSZ)
-        !
-        !IF (IRSP.EQ.1) THEN
-        !   DEALLOCATE(iXYZ,IDS,INCN,INCON,iXYZ_P,IDXYZ_P)
-        !   DEALLOCATE(CMAT,DRMAT,DDMAT,DGRN,PKBN,iPNSZ)
-        !ENDIF
-       
-        write(*,*) 
+        write(*,*)
         write(*,*) ' Congratulations! Your computation completes successfully.'
         write(*,*)
     end if

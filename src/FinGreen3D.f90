@@ -286,51 +286,61 @@
          REAL*8 J0,J1,Y0,Y1,K0,K1
          REAL*8 PI,KM,PM,RM(3)
          REAL*8 SR,SR1,DSRR,DSRZ,DSR1R,DSR1Z
+         REAL*8 ZFH,ZPH,TWOKMH,KZF,KZP,CKZF,CKZP,SKZF        ! Phase 3.7: pre-computed CSEs.
          REAL*8,INTENT(IN)::R,ZF,ZP,H,WK,WVN(1:NK)
 
          COMPLEX*16,INTENT(OUT):: GRN(3)
          COMPLEX*16 CI,P0,DP0,NM0
-         
+
          DATA  PI,CI/3.141592653589793d0,(0.D0,1.0D0)/
-         
+
 ! initialize some important parameters
-! 
+!
          NT=10
-   
+         ZFH = ZF + H                                       ! Loop-invariant — used inside the I loop.
+         ZPH = ZP + H
+
          NM0=H/2.D0*(1.D0+DSINH(2.D0*WK*H)/(2.D0*WK*H))
-         P0=PI/NM0*DCOSH(WK*(ZF+H))*DCOSH(WK*(ZP+H))
-         DP0=PI/NM0*DSINH(WK*(ZF+H))*DCOSH(WK*(ZP+H))
-         
+         P0=PI/NM0*DCOSH(WK*ZFH)*DCOSH(WK*ZPH)
+         DP0=PI/NM0*DSINH(WK*ZFH)*DCOSH(WK*ZPH)
+
 ! calculate the imaginary part of the Green function
-!        
+!
          CALL JY01B(WK*R,J0,J1,Y0,Y1)
-      
+
          GRN(1)=P0*(CI*J0-Y0)
          GRN(2)=-WK*P0*(CI*J1-Y1)
          GRN(3)=WK*DP0*(CI*J0-Y0)
 
 ! calculate the real part of the Green function
 ! the trunction terms number depends on the value of RHP
-!                    
+!
          DO I=2,NT
 
          KM=WVN(I)
+         TWOKMH = 2.D0*KM*H
 
-         PM = 4.D0/(1.D0+DSIN(2.D0*KM*H)/(2.D0*KM*H))/H
+         PM = 4.D0/(1.D0+DSIN(TWOKMH)/TWOKMH)/H
 
          CALL IK01A(KM*R,K0,K1)
 
-         RM(1) = PM*K0*DCOS(KM*(ZF+H))*DCOS(KM*(ZP+H))
-         RM(2) = -PM*KM*K1*DCOS(KM*(ZF+H))*DCOS(KM*(ZP+H))
-         RM(3) = -PM*KM*K0*DSIN(KM*(ZF+H))*DCOS(KM*(ZP+H))
-             
+         KZF = KM*ZFH
+         KZP = KM*ZPH
+         CKZF = DCOS(KZF)
+         CKZP = DCOS(KZP)
+         SKZF = DSIN(KZF)
+
+         RM(1) = PM*K0*CKZF*CKZP
+         RM(2) = -PM*KM*K1*CKZF*CKZP
+         RM(3) = -PM*KM*K0*SKZF*CKZP
+
          GRN(1)= GRN(1)+RM(1)
          GRN(2)= GRN(2)+RM(2)
          GRN(3)= GRN(3)+RM(3)
 
          IF (DABS(RM(1)).LT.1.E-6.AND.DABS(RM(2)).LT.1.E-6.AND.DABS(RM(3)).LT.1.E-6) THEN
-          EXIT 
-         ENDIF         
+          EXIT
+         ENDIF
 
          ENDDO
             
@@ -409,33 +419,36 @@
          REAL*8 PI,KM,PM,RM(3),RL(3),ERR,RHP
          REAL*8 SR,SR1,DSRR,DSRZ,DSR1R,DSR1Z
          REAL*8 G(0:NK-1),GR(0:NK-1),GZ(0:NK-1)
+         REAL*8 ZFH,ZPH,TWOKMH,KZF,KZP,CKZF,CKZP,SKZF        ! Phase 3.7: pre-computed CSEs.
          REAL*8,INTENT(IN)::R,ZF,ZP,H,WK,WVN(1:NK)
 
          COMPLEX*16,INTENT(OUT):: GRN(3)
          COMPLEX*16 CI,P0,DP0,NM0
-         
+
          DATA  PI,CI/3.141592653589793d0,(0.D0,1.0D0)/
-         
+
 ! initialize some important parameters
-! 
+!
          RHP=DABS(R/H)
          NT=INT(-88.89*RHP+54.45)
-   
+         ZFH = ZF + H                                       ! Loop-invariant — used inside the I loop.
+         ZPH = ZP + H
+
          NM0=H/2.D0*(1.D0+DSINH(2.D0*WK*H)/(2.D0*WK*H))
-         P0=PI/NM0*DCOSH(WK*(ZF+H))*DCOSH(WK*(ZP+H))
-         DP0=PI/NM0*DSINH(WK*(ZF+H))*DCOSH(WK*(ZP+H))
-         
+         P0=PI/NM0*DCOSH(WK*ZFH)*DCOSH(WK*ZPH)
+         DP0=PI/NM0*DSINH(WK*ZFH)*DCOSH(WK*ZPH)
+
 ! calculate the imaginary part of the Green function
-!         
+!
          CALL JY01B(WK*R,J0,J1,Y0,Y1)
-         
+
          GRN(1)=P0*(CI*J0-Y0)
          GRN(2)=-WK*P0*(CI*J1-Y1)
          GRN(3)=WK*DP0*(CI*J0-Y0)
 
 ! calculate the real part of the Green function
 ! the trunction terms number depends on the value of RHP
-!      
+!
          G(0)= 0.D0
          GR(0)= 0.D0
          GZ(0)= 0.D0
@@ -443,14 +456,21 @@
          DO I=2,NT
 
          KM=WVN(I)
+         TWOKMH = 2.D0*KM*H
 
-         PM = 4.D0/(1.D0+DSIN(2.D0*KM*H)/(2.D0*KM*H))/H
+         PM = 4.D0/(1.D0+DSIN(TWOKMH)/TWOKMH)/H
 
          CALL IK01A(KM*R,K0,K1)
 
-         RM(1) = PM*K0*DCOS(KM*(ZF+H))*DCOS(KM*(ZP+H))
-         RM(2) = -PM*KM*K1*DCOS(KM*(ZF+H))*DCOS(KM*(ZP+H))
-         RM(3) = -PM*KM*K0*DSIN(KM*(ZF+H))*DCOS(KM*(ZP+H))
+         KZF = KM*ZFH
+         KZP = KM*ZPH
+         CKZF = DCOS(KZF)
+         CKZP = DCOS(KZP)
+         SKZF = DSIN(KZF)
+
+         RM(1) = PM*K0*CKZF*CKZP
+         RM(2) = -PM*KM*K1*CKZF*CKZP
+         RM(3) = -PM*KM*K0*SKZF*CKZP
 
          G(I-1)= G(I-2)+RM(1)
          GR(I-1)= GR(I-2)+RM(2)

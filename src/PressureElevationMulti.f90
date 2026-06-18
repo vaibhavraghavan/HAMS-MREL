@@ -66,14 +66,15 @@ CONTAINS
       LOGICAL  ONBODY
       COMPLEX*16  F0,DPOX,DPOY,DPOZ,DINCP,TERM1,TERM2,GRN(4),DUM(2)
       COMPLEX*16, ALLOCATABLE:: XPOT(:)
-      
+
       ALLOCATE(XPOT(NELEM_PE))
         
       IRR=1
       XPOT=DCMPLX(0.0D0, 0.0D0)
 
 !$OMP PARALLEL NUM_THREADS(NTHREAD)
-!$OMP DO PRIVATE(JEL,XQ,ENV,EAR,IS,XP,DIST,FLAG,RKN,GRN,DUM,XT,ENT,DPOX,DPOY,DPOZ,DINCP,TERM1,TERM2) !$OMP REDUCTION(+:XPOT)
+!$OMP DO PRIVATE(JEL,XQ,ENV,EAR,IS,XP,DIST,FLAG,RKN,GRN,DUM,XT,ENT,DPOX,DPOY,DPOZ,DINCP,TERM1,TERM2) SCHEDULE(DYNAMIC,16)
+! Disjoint writes on XPOT(JEL) — no REDUCTION needed.
       
       DO JEL=1, NELEM_PE
 
@@ -252,7 +253,7 @@ CONTAINS
        SLD=4.D0*PI                  ! field point in the fluid (exterior)
       ENDIF
       POT=POT/SLD
-      
+
       ! Diffraction mode: ISOL=1 outputs the total field (scattered + incident),
       ! so add back the incident potential F0. ISOL=2 outputs scattered only and
       ! omits F0. Radiation modes never add F0.

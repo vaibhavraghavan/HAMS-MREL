@@ -21,6 +21,9 @@ HAMS-MREL can be built using multiple methods, but tests must always be run via 
 export FPM_FC=IFX
 
 # FPM: set the compiler flags
+# `-heap-arrays 0` is required to keep large multi-body cases from overflowing the per-thread
+# stack — see the installation docs for the full explanation.
+export FPM_FFLAGS="-qmkl -qopenmp -heap-arrays 0"
 export FPM_LDFLAGS="-qmkl -qopenmp"
 
 # Compilation step. Build is handled by FPM (HAMS-MREL and test executables will be placed in build directory)
@@ -59,6 +62,17 @@ To simplify the installation of the dependencies mentioned above, we use Actions
 **The Windows workflow configuration is defined in [build_and_test_windows.yml](../.github/build_and_test_windows.yml).**
 
 **The configuration for Linux is in [build_and_test_linux.yml](../.github/build_and_test_linux.yml).**
+
+> [!NOTE]
+> **Windows runner pinned to `windows-2022`.** Around mid-June 2026, GitHub migrated
+> `windows-latest` to `windows-2025` / `windows-2025-vs2026`. The new image places
+> Git for Windows' coreutils `link.exe` on PATH ahead of MSVC's linker, which breaks
+> fpm + ifx's link step (`link: unknown option -- s`). The workflow is therefore
+> pinned to `windows-2022` until upstream fpm or setup-fortran handles the new image
+> cleanly. When you eventually migrate, the build step will need to strip
+> `C:\Program Files\Git\usr\bin` (and possibly `C:\Program Files\Git\bin`) from
+> PATH before `fpm build`, OR you'll need to use a different invocation that
+> ensures MSVC tools are resolved first.
 
 ### About GitHub Actions
 

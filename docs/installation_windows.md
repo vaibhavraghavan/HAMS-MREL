@@ -23,7 +23,15 @@ After installation you must run the `setvars.bat` script to add the libraries to
 
 Visual Studio (Community, Professional, or Enterprise) must be installed with the "Desktop development for C++" workload. For more information see the [installation docs](https://learn.microsoft.com/en-us/visualstudio/install/install-visual-studio?view=vs-2022).
 
-When using Visual Studio 2022 and 2026, do ensure that 'Properties/libraries/Runtime Library -> Multithread DLL' and 'Properties/libraries/Use Intel Math Kernel Library -> Parallel (/Qmkl:parallel)' are turned on.
+When using Visual Studio 2022 and 2026, do ensure that the following project properties are set on the `Release|x64` configuration:
+
+- `Properties / Libraries / Runtime Library` → `Multithread DLL`
+- `Properties / Libraries / Use Intel Math Kernel Library` → `Parallel (/Qmkl:parallel)`
+- `Properties / Fortran / Language / Process OpenMP Directives` → `Generate Parallel Code (/Qopenmp)`
+- `Properties / Fortran / Optimization / Heap Arrays` → `0` &nbsp; **(required — see note below)**
+
+> [!IMPORTANT]
+> **`Heap Arrays = 0` is required.** Without it, large multi-body cases (TNELEM ≳ 3000) abort with a `forrtl: severe (170): Program Exception - stack overflow` on the first frequency iteration. The flag forces all automatic arrays and compiler-generated array temporaries onto the heap instead of the 1 MB default Windows thread stack. The committed `HAMS_MREL.vfproj` already has this set; if you are creating a fresh project, do not forget it.
 
 ## Step 2: Download HAMS-MREL
 
@@ -56,6 +64,35 @@ To execute HAMS-MREL, click the **Start** button (green triangle) at the top, or
 
 ---
 
+## Alternative: Build Using ifort (Command Line)
+
+You can also build directly from the command line with `ifort`, bypassing Visual Studio entirely. This is what the convenience script [CompileHAMS.bat](../CompileHAMS.bat) does. Open a Command Prompt or PowerShell, navigate to the directory containing the source files, and run:
+
+```shell
+ifort /Qmkl /O3 /heap-arrays0 /exe:HAMS_MREL.exe ^
+  WavDynMods.f90 InputFiles.f90 WavDynSubs.f90 PatclVelct.f90 FinGrnExtSubs.f90 ^
+  InfGreen_Appr.f90 FinGreen3D.f90 SingularIntgr.f90 SingularIntgrMulti.f90 ^
+  CalGreenFunc.f90 CalGreenFuncMulti.f90 BodyIntgr_irr.f90 BodyIntgr.f90 ^
+  BodyIntgr_irrMulti.f90 BodyIntgrMulti.f90 AssbMatx_irr.f90 AssbMatx.f90 ^
+  AssbMatx_irrMulti.f90 AssbMatxMulti.f90 HydroStatic.f90 HydroStaticMulti.f90 ^
+  NormalProcess.f90 ReadPanelMesh.f90 ReadPanelMeshMulti.f90 ImplementSubs.f90 ^
+  PotentWavForce.f90 PotentWavForceMulti.f90 PressureElevation.f90 ^
+  PressureElevationMulti.f90 SolveMotion.f90 SolveMotionMulti.f90 ^
+  PrintOutput.f90 HAMS_Prog.f90 ^
+  -openmp
+```
+
+| Flag | Purpose |
+|---|---|
+| `/Qmkl` | Link Intel MKL (provides multi-threaded `ZGETRF` / `ZGETRS`) |
+| `/O3` | High-level optimisation |
+| `/heap-arrays0` | **Required.** Places all automatic arrays on the heap. Without it the program aborts with `forrtl: severe (170): Program Exception - stack overflow` on multi-body cases with TNELEM ≳ 3000 because the default 1 MB Windows thread stack overflows when the compiler creates array-section temporaries inside the deeply-inlined `CALGREEN_*` / `SGLINTBD_*` call chain. The `0` argument means "no size threshold — every automatic array goes on the heap". |
+| `-openmp` | Enable OpenMP parallelisation |
+
+The Intel oneAPI environment must be active in the shell session — typically by running `setvars.bat` first, or by launching the script through `cmd /K "<…>\setvars.bat" intel64 vs2022` as `CompileHAMS.bat` does.
+
+---
+
 ## Alternative: Build Using gfortran (Command Line)
 
 If you do not have access to the Intel oneAPI toolkit, HAMS-MREL can also be compiled using the free and open-source **GFortran** compiler together with the **LAPACK** and **BLAS** linear algebra libraries (as a substitute for Intel MKL).
@@ -84,7 +121,7 @@ Open a Command Prompt or PowerShell, navigate to the `src` directory of the repo
 ```shell
 cd <path-to-HAMS-MREL>\src
 
-gfortran -O3 -fopenmp -ffree-line-length-none -o HAMS_MREL.exe ^
+gfortran -O3 -fopenmp -fno-stack-arrays -ffree-line-length-none -o HAMS_MREL.exe ^
   WavDynMods.f90 InputFiles.f90 ^
   WavDynSubs.f90 PatclVelct.f90 FinGrnExtSubs.f90 InfGreen_Appr.f90 ^
   FinGreen3D.f90 SingularIntgr.f90 SingularIntgrMulti.f90 ^
@@ -95,6 +132,7 @@ gfortran -O3 -fopenmp -ffree-line-length-none -o HAMS_MREL.exe ^
   PotentWavForce.f90 PotentWavForceMulti.f90 PressureElevation.f90 ^
   PressureElevationMulti.f90 SolveMotion.f90 SolveMotionMulti.f90 ^
   PrintOutput.f90 HAMS_Prog.f90 ^
+  -Wl,--stack,33554432 ^
   -llapack -lopenblas
 ```
 
@@ -104,6 +142,8 @@ The key flags are:
 |---|---|
 | `-O3` | Optimisation level 3 (equivalent to ifort `/O3`) |
 | `-fopenmp` | Enable OpenMP parallelisation (equivalent to ifort `-openmp`) |
+| `-fno-stack-arrays` | **Required.** Forces automatic arrays onto the heap instead of the stack. The gfortran equivalent of ifort's `/heap-arrays0`. Without it, large multi-body cases overflow the default 1 MB Windows thread stack. |
+| `-Wl,--stack,33554432` | Belt-and-braces — sets the executable's main-thread stack to 32 MB at link time, in case any unavoidable stack temporaries remain. |
 | `-ffree-line-length-none` | Allow source lines longer than 132 characters |
 | `-llapack -lopenblas` | Link LAPACK and BLAS (substitute for Intel MKL `/Qmkl`) |
 

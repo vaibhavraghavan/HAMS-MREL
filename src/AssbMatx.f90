@@ -63,7 +63,8 @@ CONTAINS
       AMAT=CMPLX(0.0D0,0.0D0)
 
 !$OMP PARALLEL NUM_THREADS(NTHREAD)          
-!$OMP DO PRIVATE(IEL,JEL,IP,IS,FLAG,DIST,TINDP) !$OMP REDUCTION(+:AMAT)                            ! The +:AMAT is basically addition operator which will add the value of the coefficiens for all elements
+!$OMP DO PRIVATE(IEL,JEL,IP,IS,FLAG,DIST,TINDP) SCHEDULE(DYNAMIC,16)
+! Row-disjoint writes on the IEL axis — no REDUCTION needed.
       
       DO  1000 IEL=1,  NELEM
         
@@ -89,11 +90,8 @@ CONTAINS
          CALL BODINT_LEFT(IS,IEL,JEL,TINDP,FLAG)
 
          DO IP=1, NSYS
-          IF (ISX.EQ.1.AND.ISY.EQ.0) THEN
-           AMAT(IEL,JEL,IP)=AMAT(IEL,JEL,IP)+RXY(IS,IP)*TINDP(IS)
-          ELSE
-           AMAT(IEL,JEL,IP)=AMAT(IEL,JEL,IP)+RXY(IS,IP)*TINDP(IS)
-          ENDIF
+          ! Both ISX/ISY branches were identical — collapsed.
+          AMAT(IEL,JEL,IP)=AMAT(IEL,JEL,IP)+RXY(IS,IP)*TINDP(IS)
          ENDDO
         
 200    CONTINUE
@@ -103,11 +101,10 @@ CONTAINS
 !$OMP END DO NOWAIT
 !$OMP END PARALLEL
 
-!$omp parallel do private(NTHREAD)
+! NSYS is 1 or 2 — let MKL's internal threading do the work in ZGETRF.
        DO IP=1, NSYS
           CALL ZGETRF( NELEM, NELEM, AMAT(:,:,IP), NELEM, IPIV(:,IP), INFO )
        ENDDO
-!$omp end parallel do
 
        RETURN
       END SUBROUTINE ASSB_LEFT
@@ -131,7 +128,8 @@ CONTAINS
       BRMAT=CMPLX(0.0D0,0.0D0)
 
 !$OMP PARALLEL NUM_THREADS(NTHREAD)           
-!$OMP DO PRIVATE(IEL,JEL,MD,IP,IS,FLAG,DIST,TINRD,BTMP) !$OMP REDUCTION(+:BRMAT)
+!$OMP DO PRIVATE(IEL,JEL,MD,IP,IS,FLAG,DIST,TINRD,BTMP) SCHEDULE(DYNAMIC,16)
+! Row-disjoint writes on the IEL axis — no REDUCTION needed.
       
       DO  1000 IEL=1,  NELEM
             
@@ -164,11 +162,8 @@ CONTAINS
          DO  300  IP=1, NSYS
 
          DO  300  IS=1, NSYS
-          IF (ISX.EQ.1.AND.ISY.EQ.0) THEN
-           BRMAT(IEL,MD,IP)=BRMAT(IEL,MD,IP)+RXY(IP,IS)*BTMP(MD,IS)
-          ELSE
-           BRMAT(IEL,MD,IP)=BRMAT(IEL,MD,IP)+RXY(IP,IS)*BTMP(MD,IS)
-          ENDIF
+          ! Both ISX/ISY branches were identical — collapsed.
+          BRMAT(IEL,MD,IP)=BRMAT(IEL,MD,IP)+RXY(IP,IS)*BTMP(MD,IS)
 300      CONTINUE
      
 1000   CONTINUE
@@ -198,7 +193,8 @@ CONTAINS
       BDMAT=CMPLX(0.0D0,0.0D0)
 
 !$OMP PARALLEL NUM_THREADS(NTHREAD)           
-!$OMP DO PRIVATE(XP,YP,ZP,IEL,JEL,IP,IS,FLAG,DIST,TINRD,BTMP) !$OMP REDUCTION(+:BDMAT)
+!$OMP DO PRIVATE(XP,YP,ZP,IEL,JEL,IP,IS,FLAG,DIST,TINRD,BTMP) SCHEDULE(DYNAMIC,16)
+! Row-disjoint writes on the IEL axis — no REDUCTION needed.
       
       DO  1000 IEL=1,  NELEM
             
@@ -236,11 +232,8 @@ CONTAINS
          DO  300  IP=1, NSYS
 
          DO  300  IS=1, NSYS
-          IF (ISX.EQ.1.AND.ISY.EQ.0) THEN
-           BDMAT(IEL,IP)=BDMAT(IEL,IP)+RXY(IP,IS)*BTMP(IS) 
-          ELSE
-           BDMAT(IEL,IP)=BDMAT(IEL,IP)+RXY(IP,IS)*BTMP(IS)  
-          ENDIF       
+          ! Both ISX/ISY branches were identical — collapsed.
+          BDMAT(IEL,IP)=BDMAT(IEL,IP)+RXY(IP,IS)*BTMP(IS)
 300      CONTINUE
      
 1000   CONTINUE
@@ -264,32 +257,29 @@ CONTAINS
       COMPLEX*16,INTENT(OUT):: MXPOT(NELEM,7,NSYS)
       
       INTEGER IEL,IS,IP,MD,INFO
-      COMPLEX*16,ALLOCATABLE:: ATMAT(:,:,:),BRTMAT(:,:,:)
-      
-      ALLOCATE(ATMAT(NELEM,NELEM,NSYS),BRTMAT(NELEM,6,NSYS))
-      
-      ATMAT=AMAT                                                              ! Coefficient matrix for the left side
+      COMPLEX*16,ALLOCATABLE:: BRTMAT(:,:,:)
+      ! ZGETRS does not modify its A argument — pass AMAT (the LU factorization) directly,
+      ! eliminating the previous full-size ATMAT copy.
+
+      ALLOCATE(BRTMAT(NELEM,6,NSYS))
       BRTMAT=BRMAT                                                            ! Coefficient matrix for the right side
-      
-!$omp parallel do private(NTHREAD)
+
+! NSYS is 1 or 2 — let MKL's internal threading do the work in ZGETRS.
       DO IP=1, NSYS
-           CALL ZGETRS( 'No transpose', NELEM, 6, ATMAT(:,:,IP), NELEM, IPIV(:,IP), BRTMAT(:,:,IP), NELEM, INFO )             ! For reference - https://netlib.org/lapack/explore-html/d3/d01/group__complex16_g_ecomputational_ga3a5b88a7e8bf70591e521e86464e109d.html
+           CALL ZGETRS( 'No transpose', NELEM, 6, AMAT(:,:,IP), NELEM, IPIV(:,IP), BRTMAT(:,:,IP), NELEM, INFO )
       ENDDO
       ! In the end, BRTMAT is the X matrix in the equation A*X = B which is being solved above
-!$omp end parallel do
       
       DO 1400 MD=1, 6
       DO 1400 IP=1, NSYS
 !$OMP PARALLEL NUM_THREADS(NTHREAD)
-!$OMP DO PRIVATE(IEL,IS) !$OMP REDUCTION(+:MXPOT)
+!$OMP DO PRIVATE(IEL,IS)
+! Row-disjoint writes on the IEL axis — no REDUCTION needed.
       DO 1450 IEL=1, NELEM
          MXPOT(IEL,MD,IP)=CMPLX(0.0D0, 0.0D0)
       DO 1460 IS=1, NSYS
-         IF (ISX.EQ.1.AND.ISY.EQ.0) THEN
-          MXPOT(IEL,MD,IP)=MXPOT(IEL,MD,IP)+BRTMAT(IEL,MD,IS)*RXY(IP,IS)
-         ELSE
-          MXPOT(IEL,MD,IP)=MXPOT(IEL,MD,IP)+BRTMAT(IEL,MD,IS)*RXY(IP,IS)
-         ENDIF
+         ! Both ISX/ISY branches were identical — collapsed.
+         MXPOT(IEL,MD,IP)=MXPOT(IEL,MD,IP)+BRTMAT(IEL,MD,IS)*RXY(IP,IS)
 1460  CONTINUE
          MXPOT(IEL,MD,IP)=MXPOT(IEL,MD,IP)/NSYS
 1450  CONTINUE
@@ -297,8 +287,8 @@ CONTAINS
 !$OMP END PARALLEL
 1400  CONTINUE
       
-      DEALLOCATE(ATMAT,BRTMAT)
-      
+      DEALLOCATE(BRTMAT)
+
       RETURN
       END SUBROUTINE RADIATION_SOLVER
       
@@ -315,32 +305,29 @@ CONTAINS
       COMPLEX*16,INTENT(OUT):: MXPOT(NELEM,7,NSYS)
       
       INTEGER IEL,IS,IP,MD,INFO
-      COMPLEX*16,ALLOCATABLE:: ATMAT(:,:,:),BDTMAT(:,:)
-      
-      ALLOCATE(ATMAT(NELEM,NELEM,NSYS),BDTMAT(NELEM,NSYS))
-      
-      ATMAT=AMAT
+      COMPLEX*16,ALLOCATABLE:: BDTMAT(:,:)
+      ! ZGETRS does not modify its A argument — pass AMAT (the LU factorization) directly,
+      ! eliminating the previous full-size ATMAT copy.
+
+      ALLOCATE(BDTMAT(NELEM,NSYS))
       BDTMAT=BDMAT
 
       MD=7
-      
-!$omp parallel do private(NTHREAD)
+
+! NSYS is 1 or 2 — let MKL's internal threading do the work in ZGETRS.
       DO IP=1, NSYS
-           CALL ZGETRS( 'No transpose', NELEM, 1, ATMAT(:,:,IP), NELEM, IPIV(:,IP), BDTMAT(:,IP), NELEM, INFO )
+           CALL ZGETRS( 'No transpose', NELEM, 1, AMAT(:,:,IP), NELEM, IPIV(:,IP), BDTMAT(:,IP), NELEM, INFO )
       ENDDO
-!$omp end parallel do
       
        DO 400 IP=1, NSYS
 !$OMP PARALLEL NUM_THREADS(NTHREAD)
-!$OMP DO PRIVATE(IEL,IS) !$OMP REDUCTION(+:MXPOT)
+!$OMP DO PRIVATE(IEL,IS)
+! Row-disjoint writes on the IEL axis — no REDUCTION needed.
        DO 450 IEL=1, NELEM
          MXPOT(IEL,MD,IP)=CMPLX(0.0D0, 0.0D0)
        DO 460 IS=1, NSYS
-         IF (ISX.EQ.1.AND.ISY.EQ.0) THEN
-          MXPOT(IEL,MD,IP)=MXPOT(IEL,MD,IP)+BDTMAT(IEL,IS)*RXY(IP,IS)
-         ELSE
-          MXPOT(IEL,MD,IP)=MXPOT(IEL,MD,IP)+BDTMAT(IEL,IS)*RXY(IP,IS)
-         ENDIF
+         ! Both ISX/ISY branches were identical — collapsed.
+         MXPOT(IEL,MD,IP)=MXPOT(IEL,MD,IP)+BDTMAT(IEL,IS)*RXY(IP,IS)
 460    CONTINUE
          MXPOT(IEL,MD,IP)=MXPOT(IEL,MD,IP)/NSYS
 450    CONTINUE
@@ -348,8 +335,8 @@ CONTAINS
 !$OMP END PARALLEL
 400    CONTINUE
 
-      DEALLOCATE(ATMAT,BDTMAT)
-      
+      DEALLOCATE(BDTMAT)
+
       RETURN
       END SUBROUTINE DIFFRACTION_SOLVER
 !-------------------------------------------------------------------------------
