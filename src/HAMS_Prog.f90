@@ -93,7 +93,8 @@ program HAMS_MREL
     
     integer :: II,KK,MD,MD1,MD2,FILE_M,FILE_N,NELEM_GLOBAL,err,argcount
     integer, allocatable :: NELEM_TOTAL_RAD(:)
-    character(len=100) :: FILE_NUMBER,MESH_MULTI,HYDROSTATIC_MULTI, WATERPLANEMESH_MULTI
+    character(len=16)  :: FILE_NUMBER                                       ! Body index as string, e.g. "1", "27"
+    character(len=300) :: MESH_MULTI,HYDROSTATIC_MULTI, WATERPLANEMESH_MULTI ! Full file paths — must be > inputdir length + filename
     character(len=260) :: inputdir, outputdir ! 260 is the max lengths for paths on Windows
     logical :: success
 

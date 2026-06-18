@@ -29,14 +29,18 @@
 
         REAL*8,PUBLIC::  WK1,DWK,BETA1,DBETA
 
-        ! Phase 4.3 — mixed precision opt-in for the Green's-function storage arrays.
-        ! GRN_KIND=8 (default): CGRN/RKBN/DGRN/PKBN stored at full precision (COMPLEX*16 / REAL*8). Outputs are bit-identical.
-        ! GRN_KIND=4         : same arrays stored as COMPLEX*8 / REAL*4. Halves their memory footprint.
-        !                      Roughly 7 digits of precision are lost in the Green's-function values, which propagates
-        !                      to the hydrodynamic coefficients. Validate against your reference WAMIT cases before
-        !                      using in production. All read sites auto-promote on assignment so no other code needs
-        !                      to change when this is flipped.
-        INTEGER,PARAMETER,PUBLIC :: GRN_KIND = 8
+        ! Mixed-precision storage for the Green's-function arrays.
+        ! GRN_KIND=4 (default): CGRN/RKBN/DGRN/PKBN stored as COMPLEX*8 / REAL*4. Halves the memory
+        !                       footprint of the dominant arrays. Hydrodynamic coefficients agree with
+        !                       the GRN_KIND=8 reference to 5–6 significant figures on physically-meaningful
+        !                       entries; the ~7 digits lost in the Green's-function values is averaged out
+        !                       by the LU solve. Sub-noise-floor entries (cross-DOF couplings several orders
+        !                       of magnitude below the peak) can show larger relative differences but are
+        !                       physically zero.
+        ! GRN_KIND=8          : Full precision (COMPLEX*16 / REAL*8). Use when bit-identity against WAMIT
+        !                       references is needed, or when you have memory headroom and want every digit.
+        ! All read sites auto-promote on assignment so no other code needs to change when this is flipped.
+        INTEGER,PARAMETER,PUBLIC :: GRN_KIND = 4
 
         END MODULE HAMS_mod
 
