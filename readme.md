@@ -100,6 +100,6 @@ HAMS-MREL was supported by Yasel Quintero Lares from the Digital Competence Cent
 
 > Engelfried, T., Alday, M., Raghavan, V., & Lavidas, G. (2026). Geospatial analysis of the life cycle global warming impacts from marine renewables. Renewable and Sustainable Energy Reviews, 226, 116338. [https://doi.org/10.1016/j.rser.2025.116338]
 
->> Raghavan, V., Metrikine, A. V., & Lavidas, G. (2026). Mixed Wave Energy arrays, re-thinking wave array configurations: A hydrodynamics based approach. Renewable Energy, 272, 126005. [https://doi.org/10.1016/j.renene.2026.126005]
+> Raghavan, V., Metrikine, A. V., & Lavidas, G. (2026). Mixed Wave Energy arrays, re-thinking wave array configurations: A hydrodynamics based approach. Renewable Energy, 272, 126005. [https://doi.org/10.1016/j.renene.2026.126005]
 
 Publications to follow...
