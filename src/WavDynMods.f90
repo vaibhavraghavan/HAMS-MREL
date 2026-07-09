@@ -26,6 +26,10 @@
 !
         INTEGER,PUBLIC:: IRSP,INFT,OUFT,SYBO,ISOL
         INTEGER,PUBLIC:: NTHREAD                                 ! The number of threads to be used in openmpi (parallel)
+        ! Linear-solver dispatch. 1 = direct LU (ZGETRF/ZGETRS via LAPACK, default).
+        ! 2 = GMRES (with H-matrix accelerated matvec, block-diagonal LU preconditioner).
+        ! See docs/iterative_solvers.md for the full description.
+        INTEGER,PUBLIC:: ISOLV
 
         REAL*8,PUBLIC::  WK1,DWK,BETA1,DBETA
 

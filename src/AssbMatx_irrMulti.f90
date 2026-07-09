@@ -31,6 +31,7 @@ MODULE AssbMatx_irrMulti
    
    USE BodyIntgr_irrMulti
    USE PatcVelct
+   USE IterativeSolvers, ONLY: ZITER_SOLVE_MULTI, SETUP_BLOCK_PRECONDITIONER
    IMPLICIT NONE
    
       ! ..... Public Subroutines ...................................................................................................
@@ -171,9 +172,12 @@ CONTAINS
 6000   CONTINUE
 
 ! NSYS is 1 or 2 — let MKL's internal threading do the work in ZGETRF.
-       DO IP=1, NSYS
-          CALL ZGETRF( NELEM_TOTAL, NELEM_TOTAL, CMAT(:,:,IP), NELEM_TOTAL, IPIV(:,IP), INFO )
-       ENDDO
+! Only factorize when direct-LU will be used; ISOLV>1 uses the unfactored normal-equations matrix.
+       IF (ISOLV .EQ. 1) THEN
+          DO IP=1, NSYS
+             CALL ZGETRF( NELEM_TOTAL, NELEM_TOTAL, CMAT(:,:,IP), NELEM_TOTAL, IPIV(:,IP), INFO )
+          ENDDO
+       ENDIF
 
       RETURN
       END SUBROUTINE ASSB_LEFT_IRR_MULTI
@@ -473,16 +477,28 @@ CONTAINS
       
       INTEGER IEL,IS,IP,MD,INFO
       COMPLEX*16,ALLOCATABLE:: DRTMAT(:,:,:)
+      COMPLEX*16,ALLOCATABLE:: CWORK(:,:)   ! GMRES preconditioner setup writes into its A argument.
       ! ZGETRS does not modify its A argument — pass CMAT (the LU factorization) directly,
-      ! eliminating the previous full-size CTMAT copy.
+      ! eliminating the previous full-size CTMAT copy (Phase 2.4).
 
       ALLOCATE(DRTMAT(NELEM_TOTAL,6*NBODY,NSYS))
       DRTMAT=DRMAT
 
-! NSYS is 1 or 2 — let MKL's internal threading do the work in ZGETRS.
-      DO IP=1, NSYS
-           CALL ZGETRS( 'No transpose', NELEM_TOTAL, 6*NBODY, CMAT(:,:,IP), NELEM_TOTAL, IPIV(:,IP), DRTMAT(:,:,IP), NELEM_TOTAL, INFO )
-      ENDDO
+      IF (ISOLV .EQ. 1) THEN
+! Direct LU (ISOLV=1). NSYS is 1 or 2 — let MKL's internal threading do the work in ZGETRS.
+         DO IP=1, NSYS
+              CALL ZGETRS( 'No transpose', NELEM_TOTAL, 6*NBODY, CMAT(:,:,IP), NELEM_TOTAL, IPIV(:,IP), DRTMAT(:,:,IP), NELEM_TOTAL, INFO )
+         ENDDO
+      ELSE
+! GMRES (ISOLV=2) with block-diagonal LU preconditioner on the normal-equations matrix.
+         ALLOCATE(CWORK(NELEM_TOTAL,NELEM_TOTAL))
+         DO IP=1, NSYS
+              CWORK = CMAT(:,:,IP)
+              CALL SETUP_BLOCK_PRECONDITIONER(NELEM_TOTAL, CWORK, NBODY, NELEM_MULTI)
+              CALL ZITER_SOLVE_MULTI(ISOLV, NELEM_TOTAL, CWORK, DRMAT(:,:,IP), DRTMAT(:,:,IP), 6*NBODY, INFO)
+         ENDDO
+         DEALLOCATE(CWORK)
+      ENDIF
       
       DO 1400 MD=1, 6*NBODY
       DO 1400 IP=1, NSYS
@@ -520,18 +536,32 @@ CONTAINS
       
       INTEGER IEL,IS,IP,MD,INFO
       COMPLEX*16,ALLOCATABLE:: DDTMAT(:,:)
+      COMPLEX*16,ALLOCATABLE:: CWORK(:,:), BSING(:,:), XSING(:,:)
       ! ZGETRS does not modify its A argument — pass CMAT (the LU factorization) directly,
-      ! eliminating the previous full-size CTMAT copy.
+      ! eliminating the previous full-size CTMAT copy (Phase 2.4).
 
       ALLOCATE(DDTMAT(NELEM_TOTAL,NSYS))
       DDTMAT=DDMAT
 
       MD=6*NBODY+1
 
-! NSYS is 1 or 2 — let MKL's internal threading do the work in ZGETRS.
-      DO IP=1, NSYS
-           CALL ZGETRS( 'No transpose', NELEM_TOTAL, 1, CMAT(:,:,IP), NELEM_TOTAL, IPIV(:,IP), DDTMAT(:,IP), NELEM_TOTAL, INFO )
-      ENDDO
+      IF (ISOLV .EQ. 1) THEN
+! Direct LU (ISOLV=1). NSYS is 1 or 2 — let MKL's internal threading do the work in ZGETRS.
+         DO IP=1, NSYS
+              CALL ZGETRS( 'No transpose', NELEM_TOTAL, 1, CMAT(:,:,IP), NELEM_TOTAL, IPIV(:,IP), DDTMAT(:,IP), NELEM_TOTAL, INFO )
+         ENDDO
+      ELSE
+! GMRES (ISOLV=2) with block-diagonal LU preconditioner on the normal-equations matrix.
+         ALLOCATE(CWORK(NELEM_TOTAL,NELEM_TOTAL), BSING(NELEM_TOTAL,1), XSING(NELEM_TOTAL,1))
+         DO IP=1, NSYS
+              CWORK = CMAT(:,:,IP)
+              BSING(:,1) = DDMAT(:,IP)
+              CALL SETUP_BLOCK_PRECONDITIONER(NELEM_TOTAL, CWORK, NBODY, NELEM_MULTI)
+              CALL ZITER_SOLVE_MULTI(ISOLV, NELEM_TOTAL, CWORK, BSING, XSING, 1, INFO)
+              DDTMAT(:,IP) = XSING(:,1)
+         ENDDO
+         DEALLOCATE(CWORK, BSING, XSING)
+      ENDIF
       
        DO 400 IP=1, NSYS
 !$OMP PARALLEL NUM_THREADS(NTHREAD)

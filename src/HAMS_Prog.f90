@@ -155,10 +155,15 @@ program HAMS_MREL
     call OMP_SET_NUM_THREADS(nthread)
 
     write(*,*) ' Number of machine processors:   ',omp_get_num_procs()
-    write(*,*) ' Number of OpenMP threads:       ',nthread      
+    write(*,*) ' Number of OpenMP threads:       ',nthread
     write(*,*) ' Maximum number of threads:      ',omp_get_max_threads()
     write(*,*) ' The No. of the current thread:  ',omp_get_num_threads()
-    write(*,*) 
+    if (ISOLV == 2) then
+        write(*,*) ' Linear solver type:              GMRES (H-matrix accelerated)'
+    else
+        write(*,*) ' Linear solver type:              Direct LU'
+    end if
+    write(*,*)
 
     if (NBODY == 1) then
         ! Reading the mesh, hydrostatic and water plane mesh files
