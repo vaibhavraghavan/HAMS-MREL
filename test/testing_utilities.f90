@@ -7,6 +7,7 @@ module testing_utilities
     public :: get_running_exe_path
     public :: get_repo_root_path
     public:: test_oamass_files_are_equal
+    public:: test_oamass_files_are_close
 
     ! Path to HAMS suppied by the user
     public :: hamsexe_path
@@ -166,5 +167,38 @@ module testing_utilities
         call check(error, frobenius_norm(A - B) < tolerance)
         if (allocated(error)) return
     end subroutine test_oamass_files_are_equal
+
+
+    ! Relative version: ||A - B||_F / ||A||_F < tolerance.
+    ! Use this when comparing two solvers (e.g. GMRES vs direct LU) rather than
+    ! regression-testing one solver against its own stored output. The absolute
+    ! comparison above only makes sense when the outputs are expected to be
+    ! identical as printed; entries in OAMASS span ~1e5, so a last-digit change
+    ! already produces an absolute Frobenius difference of order 10.
+    subroutine test_oamass_files_are_close(fileA, fileB, tolerance, error)
+        implicit none
+        character(len=*), intent(in) :: fileA, fileB
+        real(kind=8), intent(in) :: tolerance
+        type(error_type), allocatable, intent(out) :: error
+        real(kind=8), allocatable :: A(:,:), B(:,:)
+        real(kind=8) :: ref_norm
+
+        ! Load data into matrices
+        call read_matrix_with_format(fileA, '(F7.3,1X,F7.3,1X,6E14.5)', 8, A)
+        call read_matrix_with_format(fileB, '(F7.3,1X,F7.3,1X,6E14.5)', 8, B)
+
+        ! Check sizes
+        call check(error, size(A,1) == size(B,1))
+        if (allocated(error)) return
+        call check(error, size(A,2) == size(B,2))
+        if (allocated(error)) return
+
+        ! Relative Frobenius norm (guard against an all-zero reference)
+        ref_norm = frobenius_norm(A)
+        if (ref_norm < 1.0d-30) ref_norm = 1.0d0
+
+        call check(error, frobenius_norm(A - B) / ref_norm < tolerance)
+        if (allocated(error)) return
+    end subroutine test_oamass_files_are_close
 
 end module testing_utilities

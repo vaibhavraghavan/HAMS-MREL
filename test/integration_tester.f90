@@ -7,6 +7,7 @@ program integration_tester
 
     ! Tests imports (add only collect functions)
     use test_integration_config1, only : setup_config1, collect_tests_config1
+    use test_integration_gmres,   only : setup_gmres,   collect_tests_gmres
     use testing_utilities
 
     implicit none
@@ -25,7 +26,9 @@ program integration_tester
     ! Specify the integration tests that need to be run
     testsuites = [ &
         new_testsuite("setup_config1", setup_config1), &
-        new_testsuite("test_config1", collect_tests_config1) &
+        new_testsuite("test_config1", collect_tests_config1), &
+        new_testsuite("setup_gmres",   setup_gmres),   &
+        new_testsuite("test_gmres",    collect_tests_gmres)  &
     ]
 
     stat = 0

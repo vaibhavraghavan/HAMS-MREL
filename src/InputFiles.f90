@@ -174,8 +174,24 @@ module IO
         read(1,'(23x,i16)')        IRSP
         read(1,'(23x,i16)')        NTHREAD
 
+        ! Optional Solver_type (ISOLV) line — backward compatible.
+        ! If the line is not present (old ControlFile.in), backspace and default to direct LU.
+        ! Values: 1 = Direct LU (default), 2 = GMRES with H-matrix acceleration.
+        ISOLV = 1
+        read(1, '(A)', IOSTAT=err) line
+        if (err == 0 .and. index(line, "Solver_type") > 0) then
+            read(line, '(26x,i16)', IOSTAT=err) ISOLV
+            if (err /= 0) ISOLV = 1
+            if (ISOLV < 1 .or. ISOLV > 2) then
+                print*, 'Warning: ISOLV must be 1 or 2. Using default (1 = direct LU).'
+                ISOLV = 1
+            end if
+        else
+            if (err == 0) backspace(1)
+        end if
+
         ! Field Points
-        read(1,*) 
+        read(1,*)
         read(1,*)
         ! Read number of field points
         read(1,'(27x,i16)')        NFP

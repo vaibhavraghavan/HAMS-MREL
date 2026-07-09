@@ -61,11 +61,13 @@
 		<File RelativePath=".\src\FinGreen3D.f90"/>
 		<File RelativePath=".\src\FinGrnExtSubs.f90"/>
 		<File RelativePath=".\src\HAMS_Prog.f90"/>
+		<File RelativePath=".\src\HMatrix.f90"/>
 		<File RelativePath=".\src\HydroStatic.f90"/>
 		<File RelativePath=".\src\HydroStaticMulti.f90"/>
 		<File RelativePath=".\src\ImplementSubs.f90"/>
 		<File RelativePath=".\src\InfGreen_Appr.f90"/>
 		<File RelativePath=".\src\InputFiles.f90"/>
+		<File RelativePath=".\src\IterativeSolvers.f90"/>
 		<File RelativePath=".\src\NormalProcess.f90"/>
 		<File RelativePath=".\src\PatclVelct.f90"/>
 		<File RelativePath=".\src\PotentWavForce.f90"/>

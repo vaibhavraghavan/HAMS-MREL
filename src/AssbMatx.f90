@@ -30,6 +30,8 @@ MODULE AssbMatx
 
    USE BodyIntgr
    USE PatcVelct
+   USE IterativeSolvers, ONLY: ZITER_SOLVE_MULTI
+   USE HMatrix_mod,      ONLY: HMATRIX_BUILD, HMATRIX_DESTROY
    IMPLICIT NONE
 
    PRIVATE
@@ -102,9 +104,13 @@ CONTAINS
 !$OMP END PARALLEL
 
 ! NSYS is 1 or 2 — let MKL's internal threading do the work in ZGETRF.
-       DO IP=1, NSYS
-          CALL ZGETRF( NELEM, NELEM, AMAT(:,:,IP), NELEM, IPIV(:,IP), INFO )
-       ENDDO
+! Only factorize when the direct-LU solver will be used; for ISOLV>1 the iterative
+! solver operates on the unfactored matrix and the factorization would be wasted.
+       IF (ISOLV .EQ. 1) THEN
+          DO IP=1, NSYS
+             CALL ZGETRF( NELEM, NELEM, AMAT(:,:,IP), NELEM, IPIV(:,IP), INFO )
+          ENDDO
+       ENDIF
 
        RETURN
       END SUBROUTINE ASSB_LEFT
@@ -258,16 +264,29 @@ CONTAINS
       
       INTEGER IEL,IS,IP,MD,INFO
       COMPLEX*16,ALLOCATABLE:: BRTMAT(:,:,:)
+      COMPLEX*16,ALLOCATABLE:: AWORK(:,:)   ! Workspace for the iterative solver — see AssbMatxMulti version.
       ! ZGETRS does not modify its A argument — pass AMAT (the LU factorization) directly,
-      ! eliminating the previous full-size ATMAT copy.
+      ! eliminating the previous full-size ATMAT copy (Phase 2.4).
 
       ALLOCATE(BRTMAT(NELEM,6,NSYS))
       BRTMAT=BRMAT                                                            ! Coefficient matrix for the right side
 
-! NSYS is 1 or 2 — let MKL's internal threading do the work in ZGETRS.
-      DO IP=1, NSYS
-           CALL ZGETRS( 'No transpose', NELEM, 6, AMAT(:,:,IP), NELEM, IPIV(:,IP), BRTMAT(:,:,IP), NELEM, INFO )
-      ENDDO
+      IF (ISOLV .EQ. 1) THEN
+! Direct LU (ISOLV=1). NSYS is 1 or 2 — let MKL's internal threading do the work in ZGETRS.
+         DO IP=1, NSYS
+              CALL ZGETRS( 'No transpose', NELEM, 6, AMAT(:,:,IP), NELEM, IPIV(:,IP), BRTMAT(:,:,IP), NELEM, INFO )
+         ENDDO
+      ELSE
+! GMRES (ISOLV=2). No block-diagonal preconditioner for a single body; H-matvec still applies.
+         ALLOCATE(AWORK(NELEM,NELEM))
+         DO IP=1, NSYS
+              AWORK = AMAT(:,:,IP)
+              CALL HMATRIX_BUILD(NELEM, AWORK, XYZ_P)
+              CALL ZITER_SOLVE_MULTI(ISOLV, NELEM, AWORK, BRMAT(:,:,IP), BRTMAT(:,:,IP), 6, INFO)
+              CALL HMATRIX_DESTROY()
+         ENDDO
+         DEALLOCATE(AWORK)
+      ENDIF
       ! In the end, BRTMAT is the X matrix in the equation A*X = B which is being solved above
       
       DO 1400 MD=1, 6
@@ -306,18 +325,33 @@ CONTAINS
       
       INTEGER IEL,IS,IP,MD,INFO
       COMPLEX*16,ALLOCATABLE:: BDTMAT(:,:)
+      COMPLEX*16,ALLOCATABLE:: AWORK(:,:), BSING(:,:), XSING(:,:)
       ! ZGETRS does not modify its A argument — pass AMAT (the LU factorization) directly,
-      ! eliminating the previous full-size ATMAT copy.
+      ! eliminating the previous full-size ATMAT copy (Phase 2.4).
 
       ALLOCATE(BDTMAT(NELEM,NSYS))
       BDTMAT=BDMAT
 
       MD=7
 
-! NSYS is 1 or 2 — let MKL's internal threading do the work in ZGETRS.
-      DO IP=1, NSYS
-           CALL ZGETRS( 'No transpose', NELEM, 1, AMAT(:,:,IP), NELEM, IPIV(:,IP), BDTMAT(:,IP), NELEM, INFO )
-      ENDDO
+      IF (ISOLV .EQ. 1) THEN
+! Direct LU (ISOLV=1). NSYS is 1 or 2 — let MKL's internal threading do the work in ZGETRS.
+         DO IP=1, NSYS
+              CALL ZGETRS( 'No transpose', NELEM, 1, AMAT(:,:,IP), NELEM, IPIV(:,IP), BDTMAT(:,IP), NELEM, INFO )
+         ENDDO
+      ELSE
+! GMRES (ISOLV=2). Wrap the 1-column diffraction RHS into a rank-2 slice for ZITER_SOLVE_MULTI.
+         ALLOCATE(AWORK(NELEM,NELEM), BSING(NELEM,1), XSING(NELEM,1))
+         DO IP=1, NSYS
+              AWORK = AMAT(:,:,IP)
+              BSING(:,1) = BDMAT(:,IP)
+              CALL HMATRIX_BUILD(NELEM, AWORK, XYZ_P)
+              CALL ZITER_SOLVE_MULTI(ISOLV, NELEM, AWORK, BSING, XSING, 1, INFO)
+              CALL HMATRIX_DESTROY()
+              BDTMAT(:,IP) = XSING(:,1)
+         ENDDO
+         DEALLOCATE(AWORK, BSING, XSING)
+      ENDIF
       
        DO 400 IP=1, NSYS
 !$OMP PARALLEL NUM_THREADS(NTHREAD)

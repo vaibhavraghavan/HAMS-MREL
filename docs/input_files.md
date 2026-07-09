@@ -97,6 +97,7 @@ This section begines on the next line after the previous one.
 | next | `26x,i16` | `ISOL` | Wave diffraction solution. Switch: 1 or 2. 1 if incident and scattering potentials are combined; 2 if only scattering.  |
 | next | `23x,i16` | `IRSP` | Irregular frequencies: 1 for to remove them, 0 to keep them |
 | next | `23x,i16` | `NTHREAD` | Number of OpenMP threads; setting it to 1 removes parallelization |
+| (optional) | `26x,i16` | `ISOLV` | Linear solver: 1 = direct LU (default), 2 = GMRES with H-matrix acceleration. Line is detected by the `Solver_type` keyword; if absent, ISOLV defaults to 1. See [iterative_solvers.md](iterative_solvers.md) for full details. |
 
 **Pressure and Elevation**
 

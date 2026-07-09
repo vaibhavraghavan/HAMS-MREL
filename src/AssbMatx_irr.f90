@@ -31,6 +31,7 @@ MODULE AssbMatx_irr
    
    USE BodyIntgr_irr
    USE PatcVelct
+   USE IterativeSolvers, ONLY: ZITER_SOLVE_MULTI
    IMPLICIT NONE
    
       ! ..... Public Subroutines ...................................................................................................
@@ -168,9 +169,12 @@ CONTAINS
 6000   CONTINUE
 
 ! NSYS is 1 or 2 — let MKL's internal threading do the work in ZGETRF.
-       DO IP=1, NSYS
-          CALL ZGETRF( NELEM, NELEM, CMAT(:,:,IP), NELEM, IPIV(:,IP), INFO )
-       ENDDO
+! Only factorize when direct-LU will be used; ISOLV>1 uses the unfactored normal-equations matrix.
+       IF (ISOLV .EQ. 1) THEN
+          DO IP=1, NSYS
+             CALL ZGETRF( NELEM, NELEM, CMAT(:,:,IP), NELEM, IPIV(:,IP), INFO )
+          ENDDO
+       ENDIF
 
       RETURN
       END SUBROUTINE ASSB_LEFT_IRR
@@ -476,15 +480,23 @@ CONTAINS
       INTEGER IEL,IS,IP,MD,INFO
       COMPLEX*16,ALLOCATABLE:: DRTMAT(:,:,:)
       ! ZGETRS does not modify its A argument — pass CMAT (the LU factorization) directly,
-      ! eliminating the previous full-size CTMAT copy.
+      ! eliminating the previous full-size CTMAT copy (Phase 2.4).
 
       ALLOCATE(DRTMAT(NELEM,6,NSYS))
       DRTMAT=DRMAT
 
-! NSYS is 1 or 2 — let MKL's internal threading do the work in ZGETRS.
-      DO IP=1, NSYS
-           CALL ZGETRS( 'No transpose', NELEM, 6, CMAT(:,:,IP), NELEM, IPIV(:,IP), DRTMAT(:,:,IP), NELEM, INFO )
-      ENDDO
+      IF (ISOLV .EQ. 1) THEN
+! Direct LU (ISOLV=1). NSYS is 1 or 2 — let MKL's internal threading do the work in ZGETRS.
+         DO IP=1, NSYS
+              CALL ZGETRS( 'No transpose', NELEM, 6, CMAT(:,:,IP), NELEM, IPIV(:,IP), DRTMAT(:,:,IP), NELEM, INFO )
+         ENDDO
+      ELSE
+! GMRES (ISOLV=2) — iterate on the unfactored normal-equations matrix directly.
+! H-matrix compression is skipped here because normal-equations blocks are not admissible.
+         DO IP=1, NSYS
+              CALL ZITER_SOLVE_MULTI(ISOLV, NELEM, CMAT(:,:,IP), DRMAT(:,:,IP), DRTMAT(:,:,IP), 6, INFO)
+         ENDDO
+      ENDIF
       
       DO 1400 MD=1, 6
       DO 1400 IP=1, NSYS
@@ -522,18 +534,30 @@ CONTAINS
       
       INTEGER IEL,IS,IP,MD,INFO
       COMPLEX*16,ALLOCATABLE:: DDTMAT(:,:)
+      COMPLEX*16,ALLOCATABLE:: BSING(:,:), XSING(:,:)
       ! ZGETRS does not modify its A argument — pass CMAT (the LU factorization) directly,
-      ! eliminating the previous full-size CTMAT copy.
+      ! eliminating the previous full-size CTMAT copy (Phase 2.4).
 
       ALLOCATE(DDTMAT(NELEM,NSYS))
       DDTMAT=DDMAT
 
       MD=7
 
-! NSYS is 1 or 2 — let MKL's internal threading do the work in ZGETRS.
-      DO IP=1, NSYS
-           CALL ZGETRS( 'No transpose', NELEM, 1, CMAT(:,:,IP), NELEM, IPIV(:,IP), DDTMAT(:,IP), NELEM, INFO )
-      ENDDO
+      IF (ISOLV .EQ. 1) THEN
+! Direct LU (ISOLV=1). NSYS is 1 or 2 — let MKL's internal threading do the work in ZGETRS.
+         DO IP=1, NSYS
+              CALL ZGETRS( 'No transpose', NELEM, 1, CMAT(:,:,IP), NELEM, IPIV(:,IP), DDTMAT(:,IP), NELEM, INFO )
+         ENDDO
+      ELSE
+! GMRES (ISOLV=2) — iterate on the unfactored normal-equations matrix directly.
+         ALLOCATE(BSING(NELEM,1), XSING(NELEM,1))
+         DO IP=1, NSYS
+              BSING(:,1) = DDMAT(:,IP)
+              CALL ZITER_SOLVE_MULTI(ISOLV, NELEM, CMAT(:,:,IP), BSING, XSING, 1, INFO)
+              DDTMAT(:,IP) = XSING(:,1)
+         ENDDO
+         DEALLOCATE(BSING, XSING)
+      ENDIF
       
        DO 400 IP=1, NSYS
 !$OMP PARALLEL NUM_THREADS(NTHREAD)
